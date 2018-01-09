@@ -1,0 +1,7 @@
+[package]
+name = "g933-utils"
+version = "0.1.0"
+authors = ["Ash Levy <ashlea@protonmail.com>"]
+
+[dependencies]
+hidapi = "0.4.1"
