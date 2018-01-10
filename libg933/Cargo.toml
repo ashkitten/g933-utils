@@ -1,11 +1,8 @@
 [package]
-name = "g933-utils"
+name = "libg933"
 version = "0.1.0"
 authors = ["Ash Levy <ashlea@protonmail.com>"]
 
-[workspace]
-members = ["libg933"]
-
 [dependencies]
-libg933 = { path = "libg933" }
 hidapi = "0.4.1"
+owning_ref = "0.3.3"
