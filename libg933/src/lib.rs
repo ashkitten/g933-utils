@@ -28,12 +28,18 @@ extern crate hidapi;
 extern crate owning_ref;
 
 pub mod util;
+pub mod light_config;
 
 use hidapi::{HidApi, HidDevice};
 use std::ops::Deref;
 use owning_ref::OwningHandle;
 
 use util::DerefInner;
+use light_config::*;
+
+pub trait AsBytes {
+    fn as_bytes(&self) -> Vec<u8>;
+}
 
 pub struct Request {
     buf: [u8; 20],
@@ -215,6 +221,16 @@ impl<'a> Device<'a> {
             move |response| {
                 assert_eq!(response[0], report_buttons);
             },
+        ));
+    }
+
+    /// set light configuration
+    pub fn set_light_config(&mut self, light_config: LightConfig) {
+        self.requests.push(Request::new(
+            0x04,
+            0x3c,
+            light_config.as_bytes().as_slice(),
+            move |_response| {},
         ));
     }
 }
