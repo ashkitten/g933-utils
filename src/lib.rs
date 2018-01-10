@@ -116,6 +116,20 @@ pub fn get_device_info(device: &HidDevice) -> (u8, [u8; 4], [u8; 2], [u8; 6]) {
     return (entity_cnt, unit_id, transport, model_id);
 }
 
+/// set button reporting mode
+///
+/// # Parameters:
+///
+/// - `report_buttons: u8` (boolean)
+///
+/// # Return values:
+///
+/// - `report_buttons: u8` (confirmation i guess?)
+fn set_report_buttons(device: &HidDevice, report_buttons: u8) {
+    let response = send_request(device, 0x05, 0x21, &[report_buttons]);
+    assert_eq!(response[0], report_buttons);
+}
+
 #[cfg(test)]
 mod tests {
     use hidapi::HidApi;
@@ -128,5 +142,7 @@ mod tests {
         println!("feature 0x0003: {:?}", ::get_feature(&device, 0x0003));
         println!("protocol version: {:?}", ::get_protocol_version(&device));
         println!("device info: {:?}", ::get_device_info(&device));
+        ::set_report_buttons(&device, 0x01);
+        println!("reporting button presses: true");
     }
 }
