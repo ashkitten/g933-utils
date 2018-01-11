@@ -74,5 +74,4 @@
 - [0a] : [0a]
 
 [08:0x]
-# response[2] seems to be 01 when unplugged, 03 when plugged in
 - [] : [0e:72:01]

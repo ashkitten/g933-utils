@@ -1,3 +1,5 @@
+//! Some helpful utility types and stuff
+
 use std::ops::Deref;
 
 /// A struct that derefs to its contents

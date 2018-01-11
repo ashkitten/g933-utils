@@ -23,6 +23,7 @@
 //! [0003]: https://lekensteyn.nl/files/logitech/x0003_deviceinfo.html
 
 #![feature(drain_filter)]
+#![warn(missing_docs)]
 
 extern crate hidapi;
 extern crate owning_ref;
@@ -37,16 +38,23 @@ use owning_ref::OwningHandle;
 use util::DerefInner;
 use light_config::*;
 
+/// Convert a struct that implements this trait to bytes
 pub trait AsBytes {
+    /// Convert a struct that implements this trait to bytes
     fn as_bytes(&self) -> Vec<u8>;
 }
 
+/// A struct that contains the bytes of a request as well as a callback for when a response is
+/// retrieved
 pub struct Request {
+    /// The request buffer
     buf: [u8; 20],
+    /// A callback for when the response is retrieved
     callback: Box<Fn([u8; 16])>,
 }
 
 impl Request {
+    /// Construct a new `Request`
     pub fn new<F>(feature_index: u8, fnid_swid: u8, parameters: &[u8], callback: F) -> Self
     where
         F: Fn([u8; 16]) + 'static,
@@ -61,14 +69,17 @@ impl Request {
         }
     }
 
+    /// Retrieve the `feature_index` from the `Request`
     pub fn feature_index(&self) -> u8 {
         self.buf[2]
     }
 
+    /// Retrieve the `fnid_swid` from the `Request`
     pub fn fnid_swid(&self) -> u8 {
         self.buf[3]
     }
 
+    /// Deliver a response via callback
     pub fn respond(&self, response: [u8; 16]) {
         (self.callback)(response);
     }
@@ -82,12 +93,14 @@ impl Deref for Request {
     }
 }
 
+/// Contains a `HidDevice` and a vector of requests to be processed
 pub struct Device<'a> {
     hid_device: OwningHandle<Box<HidApi>, DerefInner<HidDevice<'a>>>,
     requests: Vec<Request>,
 }
 
 impl<'a> Device<'a> {
+    /// Construct a new `Device`
     pub fn new() -> Self {
         let hid_device = OwningHandle::new_with_fn(
             Box::new(HidApi::new().unwrap()),
@@ -100,6 +113,7 @@ impl<'a> Device<'a> {
         }
     }
 
+    /// Process requests and returned data
     pub fn process_data(&mut self) {
         let mut data = [0u8; 20];
         while self.requests.len() != 0 {
@@ -225,12 +239,38 @@ impl<'a> Device<'a> {
     }
 
     /// set light configuration
+    ///
+    /// # Parameters:
+    ///
+    /// - `light_config: LightConfig` (see light_config.rs)
+    ///
+    /// # Return values:
+    ///
+    /// - `old_config: LightConfig` (previous configuration)
     pub fn set_light_config(&mut self, light_config: LightConfig) {
         self.requests.push(Request::new(
             0x04,
-            0x3c,
+            0x31,
             light_config.as_bytes().as_slice(),
             move |_response| {},
+        ));
+    }
+
+    /// set sidetone volume
+    ///
+    /// # Parameters:
+    ///
+    /// - `volume: u8` (0x00 minimum, 0x64 maximum)
+    ///
+    /// # Return values:
+    ///
+    /// - `volume: u8` (same as params)
+    pub fn set_sidetone_volume(&mut self, volume: u8) {
+        self.requests.push(Request::new(
+            0x07,
+            0x11,
+            &[volume],
+            move |_response| {}
         ));
     }
 }
