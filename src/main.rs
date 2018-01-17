@@ -36,5 +36,8 @@ fn main() {
 
     if let Some(matches) = matches.subcommand_matches("set") {}
 
-    println!("{:?}", libg933::find_devices()[0].get_protocol_version().wait());
+    println!(
+        "{:?}",
+        libg933::find_devices()[0].get_protocol_version().wait()
+    );
 }

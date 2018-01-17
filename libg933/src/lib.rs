@@ -25,8 +25,8 @@
 #![feature(drain_filter, conservative_impl_trait)]
 #![warn(missing_docs)]
 
-extern crate udev;
 extern crate futures;
+extern crate udev;
 
 pub mod light_config;
 
@@ -94,7 +94,10 @@ impl Device {
     }
 
     /// Send a raw request to the device
-    pub fn raw_request(&mut self, request: &[u8]) -> impl Future<Item=[u8; 16], Error=oneshot::Canceled> {
+    pub fn raw_request(
+        &mut self,
+        request: &[u8],
+    ) -> impl Future<Item = [u8; 16], Error = oneshot::Canceled> {
         assert!(request.len() <= 20);
 
         use std::io::Write;
@@ -137,9 +140,20 @@ impl Device {
     /// - `featVer`
     ///
     /// [doc]: https://lekensteyn.nl/files/logitech/x0000_root.html#getProtocolVersion
-    pub fn get_feature(&mut self, feature: u16) -> impl Future<Item=(u8, u8, u8), Error=oneshot::Canceled> {
-        let request = [0x11, 0xff, 0x00, 0x01, (feature >> 8) as u8, (feature & 0xff) as u8];
-        self.raw_request(&request).map(|response| (response[0], response[1], response[2]))
+    pub fn get_feature(
+        &mut self,
+        feature: u16,
+    ) -> impl Future<Item = (u8, u8, u8), Error = oneshot::Canceled> {
+        let request = [
+            0x11,
+            0xff,
+            0x00,
+            0x01,
+            (feature >> 8) as u8,
+            (feature & 0xff) as u8,
+        ];
+        self.raw_request(&request)
+            .map(|response| (response[0], response[1], response[2]))
     }
 
     /// getProtocolVersion ([documentation][doc])
@@ -156,7 +170,9 @@ impl Device {
     /// - `targetSw`
     ///
     /// [doc]: https://lekensteyn.nl/files/logitech/x0000_root.html#getProtocolVersion
-    pub fn get_protocol_version(&mut self) -> impl Future<Item=(u8, u8), Error=oneshot::Canceled> {
+    pub fn get_protocol_version(
+        &mut self,
+    ) -> impl Future<Item = (u8, u8), Error = oneshot::Canceled> {
         let request = [0x11, 0xff, 0x00, 0x11, 0x00, 0x00, 0xee];
         self.raw_request(&request).map(|response| {
             assert_eq!(0xee, response[2]);
@@ -178,7 +194,9 @@ impl Device {
     /// - `modelId: [u8; 6]`
     ///
     /// [doc]: https://lekensteyn.nl/files/logitech/x0003_deviceinfo.html
-    pub fn get_device_info<F>(&mut self) -> impl Future<Item=(u8, [u8; 4], [u8; 2], [u8; 6]), Error=oneshot::Canceled> {
+    pub fn get_device_info<F>(
+        &mut self,
+    ) -> impl Future<Item = (u8, [u8; 4], [u8; 2], [u8; 6]), Error = oneshot::Canceled> {
         let request = [0x11, 0xff, 0x02, 0x01];
         self.raw_request(&request).map(|response| {
             let entity_cnt = response[0];
@@ -201,9 +219,13 @@ impl Device {
     /// # Return values:
     ///
     /// - `report_buttons: u8` (confirmation i guess?)
-    pub fn set_report_buttons(&mut self, report_buttons: u8) -> impl Future<Item=(), Error=oneshot::Canceled> {
+    pub fn set_report_buttons(
+        &mut self,
+        report_buttons: u8,
+    ) -> impl Future<Item = (), Error = oneshot::Canceled> {
         let request = [0x11, 0xff, 0x05, 0x21, report_buttons];
-        self.raw_request(&request).map(move |response| assert_eq!(report_buttons, response[0]))
+        self.raw_request(&request)
+            .map(move |response| assert_eq!(report_buttons, response[0]))
     }
 
     /// set light configuration
@@ -215,7 +237,10 @@ impl Device {
     /// # Return values:
     ///
     /// - `old_config: LightConfig` (previous configuration)
-    pub fn set_light_config(&mut self, light_config: LightConfig) -> impl Future<Item=(), Error=oneshot::Canceled> {
+    pub fn set_light_config(
+        &mut self,
+        light_config: LightConfig,
+    ) -> impl Future<Item = (), Error = oneshot::Canceled> {
         let mut request = vec![0x11, 0xff, 0x04, 0x31];
         request.extend(light_config.as_bytes().iter());
         self.raw_request(&request).map(|_| ())
@@ -230,9 +255,13 @@ impl Device {
     /// # Return values:
     ///
     /// - `volume: u8` (same as params)
-    pub fn set_sidetone_volume(&mut self, volume: u8) -> impl Future<Item=(), Error=oneshot::Canceled> {
+    pub fn set_sidetone_volume(
+        &mut self,
+        volume: u8,
+    ) -> impl Future<Item = (), Error = oneshot::Canceled> {
         let request = [0x11, 0xff, 0x07, 0x11, volume];
-        self.raw_request(&request).map(move |response| assert_eq!(volume, response[0]))
+        self.raw_request(&request)
+            .map(move |response| assert_eq!(volume, response[0]))
     }
 }
 
