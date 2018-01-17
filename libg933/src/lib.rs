@@ -22,20 +22,23 @@
 //! [0000]: https://lekensteyn.nl/files/logitech/x0000_root.html
 //! [0003]: https://lekensteyn.nl/files/logitech/x0003_deviceinfo.html
 
-#![feature(drain_filter)]
+#![feature(drain_filter, conservative_impl_trait)]
 #![warn(missing_docs)]
 
-extern crate hidapi;
-extern crate owning_ref;
+extern crate udev;
+extern crate futures;
 
-pub mod util;
 pub mod light_config;
 
-use hidapi::{HidApi, HidDevice};
-use std::ops::Deref;
-use owning_ref::OwningHandle;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
+use std::fs::{File, OpenOptions};
+use std::path::Path;
+use std::collections::HashMap;
+use futures::prelude::*;
+use futures::sync::oneshot;
 
-use util::DerefInner;
 use light_config::*;
 
 /// Convert a struct that implements this trait to bytes
@@ -44,96 +47,81 @@ pub trait AsBytes {
     fn as_bytes(&self) -> Vec<u8>;
 }
 
-/// A struct that contains the bytes of a request as well as a callback for when a response is
-/// retrieved
-pub struct Request {
-    /// The request buffer
-    buf: [u8; 20],
-    /// A callback for when the response is retrieved
-    callback: Box<Fn([u8; 16])>,
-}
-
-impl Request {
-    /// Construct a new `Request`
-    pub fn new<F>(feature_index: u8, fnid_swid: u8, parameters: &[u8], callback: F) -> Self
-    where
-        F: Fn([u8; 16]) + 'static,
-    {
-        let mut buf = [0u8; 20];
-        buf[..4].copy_from_slice(&[0x11, 0xff, feature_index, fnid_swid]);
-        buf[4..(4 + parameters.len())].copy_from_slice(parameters);
-
-        Self {
-            buf,
-            callback: Box::new(callback),
-        }
-    }
-
-    /// Retrieve the `feature_index` from the `Request`
-    pub fn feature_index(&self) -> u8 {
-        self.buf[2]
-    }
-
-    /// Retrieve the `fnid_swid` from the `Request`
-    pub fn fnid_swid(&self) -> u8 {
-        self.buf[3]
-    }
-
-    /// Deliver a response via callback
-    pub fn respond(&self, response: [u8; 16]) {
-        (self.callback)(response);
-    }
-}
-
-impl Deref for Request {
-    type Target = [u8; 20];
-
-    fn deref(&self) -> &Self::Target {
-        &self.buf
-    }
-}
-
 /// Contains a `HidDevice` and a vector of requests to be processed
-pub struct Device<'a> {
-    hid_device: OwningHandle<Box<HidApi>, DerefInner<HidDevice<'a>>>,
-    requests: Vec<Request>,
+pub struct Device {
+    file: File,
+    requests: Arc<Mutex<HashMap<[u8; 4], oneshot::Sender<[u8; 16]>>>>,
 }
 
-impl<'a> Device<'a> {
-    /// Construct a new `Device`
-    pub fn new() -> Self {
-        let hid_device = OwningHandle::new_with_fn(
-            Box::new(HidApi::new().unwrap()),
-            |api| unsafe { DerefInner((*api).open(0x046d, 0x0a5b).unwrap()) },
-        );
+impl Device {
+    /// Construct a new `Device` from a `HidDevice`
+    pub fn new(path: &Path) -> Self {
+        let device = Self {
+            file: OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(path)
+                .unwrap(),
+            requests: Arc::new(Mutex::new(HashMap::new())),
+        };
 
-        Self {
-            hid_device,
-            requests: Vec::new(),
-        }
+        let mut file = device.file.try_clone().unwrap();
+        let requests = Arc::clone(&device.requests);
+        thread::spawn(move || {
+            use std::io::Read;
+
+            let mut data = [0u8; 20];
+
+            loop {
+                thread::sleep(Duration::from_millis(100));
+
+                let mut requests = requests.lock().unwrap();
+
+                // If there are no requests or it times out without reading anything, loop again
+                if requests.is_empty() || file.read(&mut data).unwrap() == 0 {
+                    continue;
+                }
+
+                if let Some(sender) = requests.remove(&data[..4]) {
+                    let mut response = [0u8; 16];
+                    response.copy_from_slice(&data[4..]);
+                    sender.send(response).unwrap();
+                }
+            }
+        });
+
+        device
     }
 
-    /// Process requests and returned data
-    pub fn process_data(&mut self) {
+    /// Send a raw request to the device
+    pub fn raw_request(&mut self, request: &[u8]) -> impl Future<Item=[u8; 16], Error=oneshot::Canceled> {
+        assert!(request.len() <= 20);
+
+        use std::io::Write;
+
         let mut data = [0u8; 20];
-        while self.requests.len() != 0 {
-            for request in &self.requests {
-                self.hid_device.write(&**request).unwrap();
-            }
+        data[..request.len()].copy_from_slice(request);
 
-            // If it times out without reading anything, loop again
-            if self.hid_device.read_timeout(&mut data, 2000).unwrap() == 0 {
-                continue;
+        // Block until no similar requests are pending
+        loop {
+            let requests = self.requests.lock().unwrap();
+            if !requests.contains_key(&data[..4]) {
+                break;
             }
-
-            for request in self.requests.drain_filter(|request| {
-                data[0..4] == [0x11, 0xff, request.feature_index(), request.fnid_swid()]
-            }) {
-                let mut response = [0u8; 16];
-                response.copy_from_slice(&data[4..]);
-                request.respond(response);
-            }
+            thread::sleep(Duration::from_millis(100));
         }
+
+        let mut requests = self.requests.lock().unwrap();
+        let (sender, receiver) = oneshot::channel();
+
+        let mut header = [0u8; 4];
+        header.copy_from_slice(&data[..4]);
+        requests.insert(header, sender);
+
+        // TODO: re-send request if timeout
+        self.file.write(&data).unwrap();
+
+        Box::new(receiver)
     }
 
     /// getFeature ([documentation][doc])
@@ -149,16 +137,9 @@ impl<'a> Device<'a> {
     /// - `featVer`
     ///
     /// [doc]: https://lekensteyn.nl/files/logitech/x0000_root.html#getProtocolVersion
-    pub fn get_feature<F>(&mut self, feature: u16, callback: F)
-    where
-        F: Fn((u8, u8, u8)) + 'static,
-    {
-        self.requests.push(Request::new(
-            0x00,
-            0x01,
-            &[(feature >> 8) as u8, (feature & 0xff) as u8],
-            move |response| callback((response[0], response[1], response[2])),
-        ));
+    pub fn get_feature(&mut self, feature: u16) -> impl Future<Item=(u8, u8, u8), Error=oneshot::Canceled> {
+        let request = [0x11, 0xff, 0x00, 0x01, (feature >> 8) as u8, (feature & 0xff) as u8];
+        self.raw_request(&request).map(|response| (response[0], response[1], response[2]))
     }
 
     /// getProtocolVersion ([documentation][doc])
@@ -175,16 +156,12 @@ impl<'a> Device<'a> {
     /// - `targetSw`
     ///
     /// [doc]: https://lekensteyn.nl/files/logitech/x0000_root.html#getProtocolVersion
-    pub fn get_protocol_version<F>(&mut self, callback: F)
-    where
-        F: Fn((u8, u8)) + 'static,
-    {
-        self.requests.push(Request::new(
-            0x00,
-            0x11,
-            &[0x00, 0x00, 0xee],
-            move |response| callback((response[0], response[1])),
-        ));
+    pub fn get_protocol_version(&mut self) -> impl Future<Item=(u8, u8), Error=oneshot::Canceled> {
+        let request = [0x11, 0xff, 0x00, 0x11, 0x00, 0x00, 0xee];
+        self.raw_request(&request).map(|response| {
+            assert_eq!(0xee, response[2]);
+            (response[0], response[1])
+        })
     }
 
     /// getDeviceInfo ([documentation][doc])
@@ -201,21 +178,18 @@ impl<'a> Device<'a> {
     /// - `modelId: [u8; 6]`
     ///
     /// [doc]: https://lekensteyn.nl/files/logitech/x0003_deviceinfo.html
-    pub fn get_device_info<F>(&mut self, callback: F)
-    where
-        F: Fn((u8, [u8; 4], [u8; 2], [u8; 6])) + 'static,
-    {
-        self.requests
-            .push(Request::new(0x02, 0x01, &[], move |response| {
-                let entity_cnt = response[0];
-                let mut unit_id = [0; 4];
-                unit_id.copy_from_slice(&response[1..5]);
-                let mut transport = [0; 2];
-                transport.copy_from_slice(&response[5..7]);
-                let mut model_id = [0; 6];
-                model_id.copy_from_slice(&response[7..13]);
-                callback((entity_cnt, unit_id, transport, model_id));
-            }));
+    pub fn get_device_info<F>(&mut self) -> impl Future<Item=(u8, [u8; 4], [u8; 2], [u8; 6]), Error=oneshot::Canceled> {
+        let request = [0x11, 0xff, 0x02, 0x01];
+        self.raw_request(&request).map(|response| {
+            let entity_cnt = response[0];
+            let mut unit_id = [0; 4];
+            unit_id.copy_from_slice(&response[1..5]);
+            let mut transport = [0; 2];
+            transport.copy_from_slice(&response[5..7]);
+            let mut model_id = [0; 6];
+            model_id.copy_from_slice(&response[7..13]);
+            (entity_cnt, unit_id, transport, model_id)
+        })
     }
 
     /// set button reporting mode
@@ -227,15 +201,9 @@ impl<'a> Device<'a> {
     /// # Return values:
     ///
     /// - `report_buttons: u8` (confirmation i guess?)
-    pub fn set_report_buttons(&mut self, report_buttons: u8) {
-        self.requests.push(Request::new(
-            0x05,
-            0x21,
-            &[report_buttons],
-            move |response| {
-                assert_eq!(response[0], report_buttons);
-            },
-        ));
+    pub fn set_report_buttons(&mut self, report_buttons: u8) -> impl Future<Item=(), Error=oneshot::Canceled> {
+        let request = [0x11, 0xff, 0x05, 0x21, report_buttons];
+        self.raw_request(&request).map(move |response| assert_eq!(report_buttons, response[0]))
     }
 
     /// set light configuration
@@ -247,13 +215,10 @@ impl<'a> Device<'a> {
     /// # Return values:
     ///
     /// - `old_config: LightConfig` (previous configuration)
-    pub fn set_light_config(&mut self, light_config: LightConfig) {
-        self.requests.push(Request::new(
-            0x04,
-            0x31,
-            light_config.as_bytes().as_slice(),
-            move |_response| {},
-        ));
+    pub fn set_light_config(&mut self, light_config: LightConfig) -> impl Future<Item=(), Error=oneshot::Canceled> {
+        let mut request = vec![0x11, 0xff, 0x04, 0x31];
+        request.extend(light_config.as_bytes().iter());
+        self.raw_request(&request).map(|_| ())
     }
 
     /// set sidetone volume
@@ -265,12 +230,34 @@ impl<'a> Device<'a> {
     /// # Return values:
     ///
     /// - `volume: u8` (same as params)
-    pub fn set_sidetone_volume(&mut self, volume: u8) {
-        self.requests.push(Request::new(
-            0x07,
-            0x11,
-            &[volume],
-            move |_response| {}
-        ));
+    pub fn set_sidetone_volume(&mut self, volume: u8) -> impl Future<Item=(), Error=oneshot::Canceled> {
+        let request = [0x11, 0xff, 0x07, 0x11, volume];
+        self.raw_request(&request).map(move |response| assert_eq!(volume, response[0]))
     }
+}
+
+/// Enumerate and initialize devices
+pub fn find_devices() -> Vec<Device> {
+    let context = udev::Context::new().unwrap();
+
+    let mut enumerator = udev::Enumerator::new(&context).unwrap();
+    enumerator.match_subsystem("usb").unwrap();
+    enumerator.match_attribute("idVendor", "046d").unwrap();
+    enumerator.match_attribute("idProduct", "0a5b").unwrap();
+    enumerator
+        .scan_devices()
+        .unwrap()
+        .flat_map(|parent| {
+            let mut enumerator = udev::Enumerator::new(&context).unwrap();
+            enumerator.match_subsystem("hidraw").unwrap();
+            enumerator.match_parent(&parent).unwrap();
+            enumerator.scan_devices().unwrap().filter_map(|device| {
+                if let Some(devnode) = device.devnode() {
+                    Some(Device::new(devnode))
+                } else {
+                    None
+                }
+            })
+        })
+        .collect()
 }

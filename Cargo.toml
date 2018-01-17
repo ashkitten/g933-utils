@@ -8,4 +8,5 @@ members = ["libg933"]
 
 [dependencies]
 libg933 = { path = "libg933" }
-hidapi = "0.4.1"
+clap = "2.29.1"
+futures = "0.1.17"

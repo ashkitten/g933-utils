@@ -4,5 +4,5 @@ version = "0.1.0"
 authors = ["Ash Levy <ashlea@protonmail.com>"]
 
 [dependencies]
-hidapi = "0.4.1"
-owning_ref = "0.3.3"
+futures = "0.1.17"
+udev = "0.2.0"
