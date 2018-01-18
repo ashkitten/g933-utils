@@ -1,11 +1,14 @@
 extern crate clap;
-extern crate futures;
+extern crate env_logger;
+extern crate failure;
 extern crate libg933;
+#[macro_use]
+extern crate log;
 
 use clap::{App, SubCommand};
-use futures::Future;
+use failure::Error;
 
-fn main() {
+fn run() -> Result<(), Error> {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     let matches = App::new("g933control")
         .author("Ash Lea <ashlea@protonmail.com>")
@@ -30,14 +33,51 @@ fn main() {
         )
         .get_matches();
 
-    if let Some(_) = matches.subcommand_matches("list") {}
+    if let Some(_) = matches.subcommand_matches("list") {
+        for (i, device) in libg933::find_devices()?.iter_mut().enumerate() {
+            println!("Device {}, protocol version: {:?}", i, device.get_protocol_version()?);
+        }
+    }
 
     if let Some(matches) = matches.subcommand_matches("get") {}
 
     if let Some(matches) = matches.subcommand_matches("set") {}
 
-    println!(
-        "{:?}",
-        libg933::find_devices()[0].get_protocol_version().wait()
-    );
+    Ok(())
+}
+
+fn main() {
+    use std::io::Write;
+
+    env_logger::init().expect("Failed to initialize logger");
+
+    ::std::process::exit(match run() {
+        Ok(()) => 0,
+        Err(ref error) => {
+            let mut causes = error.causes();
+
+            error!(
+                "{}",
+                causes
+                    .next()
+                    .expect("`causes` should contain at least one error")
+            );
+            for cause in causes {
+                error!("Caused by: {}", cause);
+            }
+
+            let backtrace = format!("{}", error.backtrace());
+            if backtrace.is_empty() {
+                writeln!(
+                    ::std::io::stderr(),
+                    "Set RUST_BACKTRACE=1 to see a backtrace"
+                ).expect("Could not write to stderr");
+            } else {
+                writeln!(::std::io::stderr(), "{}", error.backtrace())
+                    .expect("Could not write to stderr");
+            }
+
+            1
+        }
+    });
 }
