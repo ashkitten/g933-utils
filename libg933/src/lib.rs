@@ -35,6 +35,7 @@ pub mod light_config;
 use failure::Error;
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
+use std::mem;
 use std::path::Path;
 use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
@@ -47,6 +48,12 @@ use light_config::*;
 pub trait AsBytes {
     /// Convert a struct that implements this trait to bytes
     fn as_bytes(&self) -> Vec<u8>;
+}
+
+/// Convert a series of bytes to a struct that implements this trait
+pub trait FromBytes {
+    /// Convert a series of bytes to a struct that implements this trait
+    fn from_bytes(bytes: &Vec<u8>) -> Self;
 }
 
 /// Contains a `HidDevice` and a vector of requests to be processed
@@ -231,11 +238,10 @@ impl Device {
     /// # Return values:
     ///
     /// - `old_config: LightConfig` (previous configuration)
-    pub fn set_light_config(&mut self, light_config: LightConfig) -> Result<(), Error> {
+    pub fn set_light_config(&mut self, light_config: LightConfig) -> Result<LightConfig, Error> {
         let mut request = vec![0x11, 0xff, 0x04, 0x31];
         request.extend(light_config.as_bytes().iter());
-        self.raw_request(&request)?;
-        Ok(())
+        Ok(LightConfig::from_bytes(&self.raw_request(&request)?.to_vec()))
     }
 
     /// set sidetone volume

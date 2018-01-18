@@ -1,88 +1,45 @@
 //! Configuration structs and stuff for headset lighting
 
-use AsBytes;
-
-/// Settings struct for the off effect
-#[derive(Copy, Clone, Default)]
-pub struct LightConfigOffSettings {
-    /// Padding
-    pub padding0: [u8; 5],
-}
-
-impl AsBytes for LightConfigOffSettings {
-    fn as_bytes(&self) -> Vec<u8> {
-        self.padding0.iter().cloned().collect()
-    }
-}
-
-/// Settings struct for the breathing effect
-#[derive(Copy, Clone, Default)]
-pub struct LightConfigBreathingSettings {
-    /// Effect rate - 0x4e20: slowest in software, 0x03e8: fastest in software
-    pub rate: u16,
-    /// Padding
-    pub padding0: u8,
-    /// Light brightness - 0x01: dimmest in software, 0x64: brightest in software
-    pub brightness: u8,
-    /// Padding
-    pub padding1: u8,
-}
-
-impl AsBytes for LightConfigBreathingSettings {
-    fn as_bytes(&self) -> Vec<u8> {
-        vec![
-            (self.rate >> 8) as u8,
-            (self.rate & 0xff) as u8,
-            self.padding0,
-            self.brightness,
-            self.padding1,
-        ]
-    }
-}
-
-/// Settings struct for the color cycle effect
-#[derive(Copy, Clone, Default)]
-pub struct LightConfigColorCycleSettings {
-    /// Padding
-    pub padding0: [u8; 2],
-    /// Effect rate - 0x4e20: slowest in software, 0x03e8: fastest in software
-    pub rate: u16,
-    /// Light brightness - 0x01: dimmest in software, 0x64: brightest in software
-    pub brightness: u8,
-}
-
-impl AsBytes for LightConfigColorCycleSettings {
-    fn as_bytes(&self) -> Vec<u8> {
-        vec![
-            self.padding0[0],
-            self.padding0[1],
-            (self.rate >> 8) as u8,
-            (self.rate & 0xff) as u8,
-            self.brightness,
-        ]
-    }
-}
+use {AsBytes, FromBytes};
 
 /// A union type for all light configuration settings structs
-pub union LightConfigSettings {
-    /// Settingss for the off effect
-    pub off: LightConfigOffSettings,
+pub enum LightConfigSettings {
+    /// Settings for the off effect
+    Off,
     /// Settings for the breathing effect
-    pub breathing: LightConfigBreathingSettings,
+    Breathing {
+        rate: u16,
+        brightness: u8,
+    },
     /// Settings for the color cycle effect
-    pub color_cycle: LightConfigColorCycleSettings,
+    ColorCycle {
+        rate: u16,
+        brightness: u8,
+    },
 }
 
-impl Default for LightConfigSettings {
-    fn default() -> Self {
-        Self {
-            off: Default::default(),
+impl AsBytes for LightConfigSettings {
+    fn as_bytes(&self) -> Vec<u8> {
+        let mut bytes = vec![0u8; 5];
+        match *self {
+            LightConfigSettings::Off => bytes,
+            LightConfigSettings::Breathing { rate, brightness } => {
+                bytes[0] = (rate >> 8) as u8;
+                bytes[1] = (rate & 0xff) as u8;
+                bytes[3] = brightness;
+                bytes
+            },
+            LightConfigSettings::ColorCycle { rate, brightness } => {
+                bytes[2] = (rate >> 8) as u8;
+                bytes[3] = (rate & 0xff) as u8;
+                bytes[4] = brightness;
+                bytes
+            },
         }
     }
 }
 
 /// Headset light configuration
-#[derive(Default)]
 pub struct LightConfig {
     /// Index of the light to configure - 0: logo, 1: sides
     pub light_index: u8,
@@ -96,8 +53,6 @@ pub struct LightConfig {
     pub blue: u8,
     /// Extra settings for the effect
     pub settings: LightConfigSettings,
-    /// Some padding
-    pub padding0: [u8; 2], // TODO: figure out what's there
     /// Profile type - unknown exactly how this works, but 2 seems to be the "device profile" and 0 non-default
     pub profile_type: u8,
 }
@@ -112,19 +67,35 @@ impl AsBytes for LightConfig {
             self.blue,
         ];
 
-        unsafe {
-            params.extend(
-                match self.effect {
-                    0 | 1 => self.settings.off.as_bytes(),
-                    2 => self.settings.breathing.as_bytes(),
-                    3 => self.settings.color_cycle.as_bytes(),
-                    other => panic!("Effect index should not be greater than 3, was {}", other),
-                }.iter(),
-            );
-        }
+        params.extend(self.settings.as_bytes().iter());
 
-        params.extend(vec![self.padding0[0], self.padding0[1], self.profile_type].iter());
+        params.extend([0, 0, self.profile_type].iter());
 
         params
+    }
+}
+
+impl FromBytes for LightConfig {
+    fn from_bytes(bytes: &Vec<u8>) -> Self {
+        Self {
+            light_index: bytes[0],
+            effect: bytes[1],
+            red: bytes[2],
+            green: bytes[3],
+            blue: bytes[4],
+            settings: match bytes[1] {
+                0 => LightConfigSettings::Off,
+                1 => LightConfigSettings::Breathing {
+                    rate: ((bytes[5] as u16) << 8) & (bytes[6] as u16),
+                    brightness: bytes[8],
+                },
+                2 => LightConfigSettings::ColorCycle {
+                    rate: ((bytes[7] as u16) << 8) & (bytes[8] as u16),
+                    brightness: bytes[9],
+                },
+                _ => unreachable!(),
+            },
+            profile_type: bytes[11],
+        }
     }
 }
