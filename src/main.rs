@@ -19,14 +19,14 @@ fn run() -> Result<(), Error> {
         .subcommand(SubCommand::with_name("get")
             .about("Get a property of a device")
             .args_from_usage("
-                -d, --device <device> 'Device to get property from'
+                -d, --device [device] 'Device to get property from'
                 <property>            'Property to get'
             ")
         )
         .subcommand(SubCommand::with_name("set")
             .about("Set a property of a device")
             .args_from_usage("
-                -d, --device <device> 'Device to set property on'
+                -d, --device [device] 'Device to set property on'
                 <property>            'Property to set'
                 <value>               'Value of property'
             ")
@@ -35,13 +35,43 @@ fn run() -> Result<(), Error> {
 
     if let Some(_) = matches.subcommand_matches("list") {
         for (i, device) in libg933::find_devices()?.iter_mut().enumerate() {
-            println!("Device {}, protocol version: {:?}", i, device.get_protocol_version()?);
+            println!(
+                "Device {}, protocol version: {:?}",
+                i,
+                device.get_protocol_version()?
+            );
         }
     }
 
-    if let Some(matches) = matches.subcommand_matches("get") {}
+    if let Some(matches) = matches.subcommand_matches("get") {
+        let devnum = matches.value_of("device").unwrap_or("0").parse::<usize>()?;
+        let property = matches.value_of("property").unwrap();
+        let mut device = libg933::find_devices()?.remove(devnum);
 
-    if let Some(matches) = matches.subcommand_matches("set") {}
+        match property {
+            p => println!("Invalid property: {}", p),
+        }
+    }
+
+    if let Some(matches) = matches.subcommand_matches("set") {
+        let devnum = matches.value_of("device").unwrap_or("0").parse::<usize>()?;
+        let property = matches.value_of("property").unwrap();
+        let value = matches.value_of("value").unwrap();
+        let mut device = libg933::find_devices()?.remove(devnum);
+
+        match property {
+            "report_buttons" => {
+                let reports = value.parse::<bool>()?;
+                device.set_report_buttons(reports)?;
+            }
+            "sidetone_volume" => {
+                let volume = value.parse::<u8>()?;
+                assert!(volume <= 100);
+                device.set_sidetone_volume(volume)?;
+            }
+            p => println!("Invalid property: {}", p),
+        }
+    }
 
     Ok(())
 }
