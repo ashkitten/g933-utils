@@ -8,12 +8,16 @@ pub enum LightConfigSettings {
     Off,
     /// Settings for the breathing effect
     Breathing {
+        /// The rate of the breathing effect
         rate: u16,
+        /// Light brightness
         brightness: u8,
     },
     /// Settings for the color cycle effect
     ColorCycle {
+        /// The rate of the cycle effect
         rate: u16,
+        /// Light brightness
         brightness: u8,
     },
 }
@@ -28,13 +32,13 @@ impl AsBytes for LightConfigSettings {
                 bytes[1] = (rate & 0xff) as u8;
                 bytes[3] = brightness;
                 bytes
-            },
+            }
             LightConfigSettings::ColorCycle { rate, brightness } => {
                 bytes[2] = (rate >> 8) as u8;
                 bytes[3] = (rate & 0xff) as u8;
                 bytes[4] = brightness;
                 bytes
-            },
+            }
         }
     }
 }

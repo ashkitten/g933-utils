@@ -35,7 +35,6 @@ pub mod light_config;
 use failure::Error;
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::mem;
 use std::path::Path;
 use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
@@ -223,10 +222,10 @@ impl Device {
     /// # Return values:
     ///
     /// - `report_buttons: u8` (confirmation i guess?)
-    pub fn set_report_buttons(&mut self, report_buttons: u8) -> Result<(), Error> {
-        let request = [0x11, 0xff, 0x05, 0x21, report_buttons];
+    pub fn set_report_buttons(&mut self, report_buttons: bool) -> Result<(), Error> {
+        let request = [0x11, 0xff, 0x05, 0x21, report_buttons as u8];
         self.raw_request(&request)
-            .map(move |response| assert_eq!(report_buttons, response[0]))
+            .map(move |response| assert_eq!(report_buttons as u8, response[0]))
     }
 
     /// set light configuration
