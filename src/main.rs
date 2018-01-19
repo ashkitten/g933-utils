@@ -15,7 +15,7 @@ fn run() -> Result<(), Error> {
         .about("Configure and control the Logitech G933 Gaming Headset")
         .subcommand(SubCommand::with_name("list")
             .about("List attached devices")
-        )
+       )
         .subcommand(SubCommand::with_name("get")
             .about("Get a property of a device")
             .args_from_usage("

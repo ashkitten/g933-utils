@@ -30,7 +30,7 @@ extern crate failure;
 extern crate log;
 extern crate udev;
 
-pub mod light_config;
+pub mod lights;
 
 use failure::Error;
 use std::collections::HashMap;
@@ -40,8 +40,6 @@ use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-
-use light_config::*;
 
 /// Convert a struct that implements this trait to bytes
 pub trait AsBytes {
@@ -129,6 +127,7 @@ impl Device {
 
         loop {
             self.file.write(&data)?;
+            println!("Sent data to device: {:?}", data);
             match receiver.recv_timeout(Duration::from_secs(2)) {
                 Ok(response) => return Ok(response),
                 Err(mpsc::RecvTimeoutError::Timeout) => (),
@@ -232,15 +231,15 @@ impl Device {
     ///
     /// # Parameters:
     ///
-    /// - `light_config: LightConfig` (see light_config.rs)
+    /// - `lights: lights::Config` (see lights.rs)
     ///
     /// # Return values:
     ///
-    /// - `old_config: LightConfig` (previous configuration)
-    pub fn set_light_config(&mut self, light_config: LightConfig) -> Result<LightConfig, Error> {
+    /// - `lights: lights::Config` (confirmation)
+    pub fn set_lights(&mut self, lights: lights::Config) -> Result<lights::Config, Error> {
         let mut request = vec![0x11, 0xff, 0x04, 0x31];
-        request.extend(light_config.as_bytes().iter());
-        Ok(LightConfig::from_bytes(&self.raw_request(&request)?.to_vec()))
+        request.extend(lights.as_bytes().iter());
+        Ok(lights::Config::from_bytes(&self.raw_request(&request)?.to_vec()))
     }
 
     /// set sidetone volume
