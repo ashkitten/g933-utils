@@ -47,6 +47,14 @@ pub enum Effect {
     },
 }
 
+/// Profile type (default or not)
+/// TODO: figure out more about this
+#[derive(Debug)]
+pub enum ProfileType {
+    Temporary,
+    Permanent,
+}
+
 /// Headset light configuration
 #[derive(Debug)]
 pub struct Config {
@@ -55,7 +63,7 @@ pub struct Config {
     /// Configuration for the effect
     pub effect: Effect,
     /// Profile type - unknown exactly how this works, but 2 seems to be the "device profile" and 0 non-default
-    pub profile_type: u8,
+    pub profile_type: ProfileType,
 }
 
 impl AsBytes for Config {
@@ -94,9 +102,12 @@ impl AsBytes for Config {
                 params[8] = (rate & 0xff) as u8;
                 params[9] = brightness;
             }
-        };
+        }
 
-        params[11] = self.profile_type;
+        params[11] = match self.profile_type {
+            ProfileType::Temporary => 0,
+            ProfileType::Permanent => 2,
+        };
 
         params
     }
@@ -106,6 +117,7 @@ impl FromBytes for Config {
     fn from_bytes(bytes: &Vec<u8>) -> Self {
         assert!(bytes[0] <= 1);
         assert!(bytes[1] <= 3);
+        assert!(bytes[11] == 0 || bytes[11] == 2);
 
         Self {
             light: match bytes[0] {
@@ -133,7 +145,11 @@ impl FromBytes for Config {
                 },
                 _ => unreachable!(),
             },
-            profile_type: bytes[11],
+            profile_type: match bytes[11] {
+                0 => ProfileType::Temporary,
+                2 => ProfileType::Permanent,
+                _ => unreachable!(),
+            },
         }
     }
 }
