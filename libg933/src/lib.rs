@@ -30,6 +30,8 @@ extern crate failure;
 extern crate log;
 extern crate udev;
 
+#[macro_use]
+mod macros;
 pub mod lights;
 
 use failure::Error;
@@ -50,7 +52,7 @@ pub trait AsBytes {
 /// Convert a series of bytes to a struct that implements this trait
 pub trait FromBytes {
     /// Convert a series of bytes to a struct that implements this trait
-    fn from_bytes(bytes: &Vec<u8>) -> Self;
+    fn from_bytes(bytes: &[u8]) -> Self;
 }
 
 /// Contains a `HidDevice` and a vector of requests to be processed
@@ -127,7 +129,7 @@ impl Device {
 
         loop {
             self.file.write(&data)?;
-            println!("Sent data to device: {:?}", data);
+            debug!("Sent data to device: {:?}", data);
             match receiver.recv_timeout(Duration::from_secs(2)) {
                 Ok(response) => return Ok(response),
                 Err(mpsc::RecvTimeoutError::Timeout) => (),
@@ -237,9 +239,8 @@ impl Device {
     ///
     /// - `lights: lights::Config` (confirmation)
     pub fn set_lights(&mut self, lights: lights::Config) -> Result<lights::Config, Error> {
-        let mut request = vec![0x11, 0xff, 0x04, 0x31];
-        request.extend(lights.as_bytes().iter());
-        Ok(lights::Config::from_bytes(&self.raw_request(&request)?.to_vec()))
+        let request = v![0x11, 0xff, 0x04, 0x31, @lights.as_bytes()];
+        Ok(lights::Config::from_bytes(&self.raw_request(&request)?))
     }
 
     /// set sidetone volume

@@ -51,7 +51,9 @@ pub enum Effect {
 /// TODO: figure out more about this
 #[derive(Debug)]
 pub enum ProfileType {
+    /// Temporarily set (until next power-on)
     Temporary,
+    /// Permanently store setting in device
     Permanent,
 }
 
@@ -114,7 +116,9 @@ impl AsBytes for Config {
 }
 
 impl FromBytes for Config {
-    fn from_bytes(bytes: &Vec<u8>) -> Self {
+    fn from_bytes(bytes: &[u8]) -> Self {
+        let bytes = bytes.as_ref();
+
         assert!(bytes[0] <= 1);
         assert!(bytes[1] <= 3);
         assert!(bytes[11] == 0 || bytes[11] == 2);
