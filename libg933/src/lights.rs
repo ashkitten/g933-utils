@@ -53,7 +53,7 @@ pub enum Effect {
 pub enum ProfileType {
     /// Temporarily set (until next power-on)
     Temporary,
-    /// Permanently store setting in device
+    /// Permanently store setting in device (don't apply now)
     Permanent,
 }
 
@@ -70,7 +70,7 @@ pub struct Config {
 
 impl AsBytes for Config {
     fn as_bytes(&self) -> Vec<u8> {
-        let mut params = vec![0u8; 12];
+        let mut params = vec![0u8; 13];
 
         params[0] = match self.light {
             Light::Logo => 0x00,
@@ -106,7 +106,7 @@ impl AsBytes for Config {
             }
         }
 
-        params[11] = match self.profile_type {
+        params[12] = match self.profile_type {
             ProfileType::Temporary => 0,
             ProfileType::Permanent => 2,
         };
@@ -149,7 +149,7 @@ impl FromBytes for Config {
                 },
                 _ => unreachable!(),
             },
-            profile_type: match bytes[11] {
+            profile_type: match bytes[12] {
                 0 => ProfileType::Temporary,
                 2 => ProfileType::Permanent,
                 _ => unreachable!(),
