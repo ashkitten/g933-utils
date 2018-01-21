@@ -1,5 +1,6 @@
 extern crate clap;
 extern crate env_logger;
+#[macro_use]
 extern crate failure;
 extern crate libg933;
 #[macro_use]
@@ -35,6 +36,7 @@ fn run() -> Result<(), Error> {
             .about("Send a raw request to a device")
             .args_from_usage("
                 -d, --device [device] 'Device to send request to'
+                -f, --format [format] 'Response format'
                 <request>...          'Bytes of request separated by spaces'
             ")
             .after_help("\
@@ -85,6 +87,7 @@ fn run() -> Result<(), Error> {
 
     if let Some(matches) = matches.subcommand_matches("raw") {
         let devnum = matches.value_of("device").unwrap_or("0").parse::<usize>()?;
+        let format = matches.value_of("format").unwrap_or("bytes");
         let request = matches
             .values_of("request")
             .unwrap()
@@ -95,15 +98,20 @@ fn run() -> Result<(), Error> {
             })
             .collect::<Vec<u8>>();
         let mut device = libg933::find_devices()?.remove(devnum);
-        println!(
-            "{}",
-            device
-                .raw_request(&request)?
-                .iter()
-                .map(|b| format!("{:02x}", b))
-                .collect::<Vec<String>>()
-                .join(" ")
-        );
+
+        match format {
+            "bytes" => println!(
+                "{}",
+                device
+                    .raw_request(&request)?
+                    .iter()
+                    .map(|b| format!("{:02x}", b))
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            ),
+            "string" => println!("{}", String::from_utf8_lossy(&device.raw_request(&request)?)),
+            format => bail!("Invalid format: {}", format),
+        }
     }
 
     Ok(())

@@ -32,6 +32,7 @@ extern crate udev;
 
 #[macro_use]
 mod macros;
+pub mod buttons;
 pub mod lights;
 
 use failure::Error;
@@ -254,6 +255,12 @@ impl Device {
         let request = [0x11, 0xff, 0x07, 0x11, volume];
         self.raw_request(&request)
             .map(move |response| assert_eq!(volume, response[4]))
+    }
+
+    /// Set a listener for button presses/releases (g1, g2, g3)
+    pub fn listen_buttons(&mut self, callback: fn(buttons::Buttons)) {
+        // TODO: implement
+        unimplemented!();
     }
 }
 
