@@ -31,6 +31,16 @@ fn run() -> Result<(), Error> {
                 <value>               'Value of property'
             ")
         )
+        .subcommand(SubCommand::with_name("raw")
+            .about("Send a raw request to a device")
+            .args_from_usage("
+                -d, --device [device] 'Device to send request to'
+                <request>...          'Bytes of request separated by spaces'
+            ")
+            .after_help("\
+                NOTE: The bytes of the request will always be parsed as base 16\n\
+            ")
+        )
         .get_matches();
 
     if let Some(_) = matches.subcommand_matches("list") {
@@ -71,6 +81,29 @@ fn run() -> Result<(), Error> {
             }
             p => println!("Invalid property: {}", p),
         }
+    }
+
+    if let Some(matches) = matches.subcommand_matches("raw") {
+        let devnum = matches.value_of("device").unwrap_or("0").parse::<usize>()?;
+        let request = matches
+            .values_of("request")
+            .unwrap()
+            .flat_map(|bytes| {
+                bytes
+                    .split_whitespace()
+                    .map(|b| u8::from_str_radix(b, 16).unwrap())
+            })
+            .collect::<Vec<u8>>();
+        let mut device = libg933::find_devices()?.remove(devnum);
+        println!(
+            "{}",
+            device
+                .raw_request(&request)?
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<Vec<String>>()
+                .join(" ")
+        );
     }
 
     Ok(())

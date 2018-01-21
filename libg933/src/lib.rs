@@ -58,7 +58,7 @@ pub trait FromBytes {
 /// Contains a `HidDevice` and a vector of requests to be processed
 pub struct Device {
     file: File,
-    requests: Arc<Mutex<HashMap<[u8; 4], Sender<[u8; 16]>>>>,
+    requests: Arc<Mutex<HashMap<[u8; 4], Sender<[u8; 20]>>>>,
 }
 
 impl Device {
@@ -88,9 +88,7 @@ impl Device {
 
                 if let Some(sender) = requests.remove(&data[..4]) {
                     debug!("Got data from device: {:?}", data);
-                    let mut response = [0u8; 16];
-                    response.copy_from_slice(&data[4..]);
-                    sender.send(response).unwrap();
+                    sender.send(data).unwrap();
                 }
             }
         });
@@ -99,7 +97,7 @@ impl Device {
     }
 
     /// Send a raw request to the device
-    pub fn raw_request(&mut self, request: &[u8]) -> Result<[u8; 16], Error> {
+    pub fn raw_request(&mut self, request: &[u8]) -> Result<[u8; 20], Error> {
         use std::io::Write;
 
         assert!(request.len() <= 20);
@@ -161,7 +159,7 @@ impl Device {
             (feature & 0xff) as u8,
         ];
         self.raw_request(&request)
-            .map(|response| (response[0], response[1], response[2]))
+            .map(|response| (response[4], response[5], response[6]))
     }
 
     /// getProtocolVersion ([documentation][doc])
@@ -182,7 +180,7 @@ impl Device {
         let request = [0x11, 0xff, 0x00, 0x11, 0x00, 0x00, 0xee];
         self.raw_request(&request).map(|response| {
             assert_eq!(0xee, response[2]);
-            (response[0], response[1])
+            (response[4], response[5])
         })
     }
 
@@ -203,13 +201,13 @@ impl Device {
     pub fn get_device_info(&mut self) -> Result<(u8, [u8; 4], [u8; 2], [u8; 6]), Error> {
         let request = [0x11, 0xff, 0x02, 0x01];
         self.raw_request(&request).map(|response| {
-            let entity_cnt = response[0];
+            let entity_cnt = response[4];
             let mut unit_id = [0; 4];
-            unit_id.copy_from_slice(&response[1..5]);
+            unit_id.copy_from_slice(&response[5..9]);
             let mut transport = [0; 2];
-            transport.copy_from_slice(&response[5..7]);
+            transport.copy_from_slice(&response[9..11]);
             let mut model_id = [0; 6];
-            model_id.copy_from_slice(&response[7..13]);
+            model_id.copy_from_slice(&response[11..17]);
             (entity_cnt, unit_id, transport, model_id)
         })
     }
@@ -226,7 +224,7 @@ impl Device {
     pub fn set_report_buttons(&mut self, report_buttons: bool) -> Result<(), Error> {
         let request = [0x11, 0xff, 0x05, 0x21, report_buttons as u8];
         self.raw_request(&request)
-            .map(move |response| assert_eq!(report_buttons as u8, response[0]))
+            .map(move |response| assert_eq!(report_buttons as u8, response[4]))
     }
 
     /// set light configuration
@@ -255,7 +253,7 @@ impl Device {
     pub fn set_sidetone_volume(&mut self, volume: u8) -> Result<(), Error> {
         let request = [0x11, 0xff, 0x07, 0x11, volume];
         self.raw_request(&request)
-            .map(move |response| assert_eq!(volume, response[0]))
+            .map(move |response| assert_eq!(volume, response[4]))
     }
 }
 

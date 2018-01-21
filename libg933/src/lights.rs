@@ -90,8 +90,14 @@ impl AsBytes for Config {
                 params[2] = red;
                 params[3] = green;
                 params[4] = blue;
-            },
-            Effect::Breathing { red, green, blue, rate, brightness } => {
+            }
+            Effect::Breathing {
+                red,
+                green,
+                blue,
+                rate,
+                brightness,
+            } => {
                 params[2] = red;
                 params[3] = green;
                 params[4] = blue;
