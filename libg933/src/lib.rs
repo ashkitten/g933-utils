@@ -5,11 +5,14 @@
 
 extern crate failure;
 #[macro_use]
+extern crate lazy_static;
+#[macro_use]
 extern crate log;
 extern crate udev;
 
 #[macro_use]
 mod macros;
+pub mod battery;
 pub mod buttons;
 pub mod lights;
 
@@ -115,19 +118,7 @@ impl Device {
         }
     }
 
-    /// getFeature ([documentation][doc])
-    ///
-    /// # Parameters:
-    ///
-    /// - `featId`
-    ///
-    /// # Return values:
-    ///
-    /// - `featIndex`
-    /// - `featType`
-    /// - `featVer`
-    ///
-    /// [doc]: https://lekensteyn.nl/files/logitech/x0000_root.html#getProtocolVersion
+    /// Get info about a feature
     pub fn get_feature(&mut self, feature: u16) -> Result<(u8, u8, u8), Error> {
         let request = [
             0x11,
@@ -141,20 +132,7 @@ impl Device {
             .map(|response| (response[4], response[5], response[6]))
     }
 
-    /// getProtocolVersion ([documentation][doc])
-    ///
-    /// # Parameters:
-    ///
-    /// - `zero: u8` (padding)
-    /// - `zero: u8` (padding)
-    /// - `pingData: u8` (random byte)
-    ///
-    /// # Return values:
-    ///
-    /// - `protocolNum`
-    /// - `targetSw`
-    ///
-    /// [doc]: https://lekensteyn.nl/files/logitech/x0000_root.html#getProtocolVersion
+    /// Get protocol version of device
     pub fn get_protocol_version(&mut self) -> Result<(u8, u8), Error> {
         let request = [0x11, 0xff, 0x00, 0x11, 0x00, 0x00, 0xee];
         self.raw_request(&request).map(|response| {
@@ -163,20 +141,7 @@ impl Device {
         })
     }
 
-    /// getDeviceInfo ([documentation][doc])
-    ///
-    /// # Parameters:
-    ///
-    /// none
-    ///
-    /// # Return values:
-    ///
-    /// - `entityCnt: u8`
-    /// - `unitId: [u8; 4]` (device specific identifier)
-    /// - `transport: [u8; 2]` (bitfield)
-    /// - `modelId: [u8; 6]`
-    ///
-    /// [doc]: https://lekensteyn.nl/files/logitech/x0003_deviceinfo.html
+    /// Get device info
     pub fn get_device_info(&mut self) -> Result<(u8, [u8; 4], [u8; 2], [u8; 6]), Error> {
         let request = [0x11, 0xff, 0x02, 0x01];
         self.raw_request(&request).map(|response| {
@@ -191,48 +156,32 @@ impl Device {
         })
     }
 
-    /// set button reporting mode
-    ///
-    /// # Parameters:
-    ///
-    /// - `report_buttons: u8` (boolean)
-    ///
-    /// # Return values:
-    ///
-    /// - `report_buttons: u8` (confirmation i guess?)
+    /// Set button reporting on or off
     pub fn set_report_buttons(&mut self, report_buttons: bool) -> Result<(), Error> {
         let request = [0x11, 0xff, 0x05, 0x21, report_buttons as u8];
         self.raw_request(&request)
             .map(move |response| assert_eq!(report_buttons as u8, response[4]))
     }
 
-    /// set light configuration
-    ///
-    /// # Parameters:
-    ///
-    /// - `lights: lights::Config` (see lights.rs)
-    ///
-    /// # Return values:
-    ///
-    /// - `lights: lights::Config` (confirmation)
+    /// Set light configuration
     pub fn set_lights(&mut self, lights: lights::Config) -> Result<lights::Config, Error> {
         let request = v![0x11, 0xff, 0x04, 0x31, @lights.as_bytes()];
         Ok(lights::Config::from_bytes(&self.raw_request(&request)?))
     }
 
-    /// set sidetone volume
-    ///
-    /// # Parameters:
-    ///
-    /// - `volume: u8` (0x00 minimum, 0x64 maximum)
-    ///
-    /// # Return values:
-    ///
-    /// - `volume: u8` (same as params)
+    /// Set sidetone volume
     pub fn set_sidetone_volume(&mut self, volume: u8) -> Result<(), Error> {
         let request = [0x11, 0xff, 0x07, 0x11, volume];
         self.raw_request(&request)
             .map(move |response| assert_eq!(volume, response[4]))
+    }
+
+    /// Get battery status and level
+    pub fn get_battery_status(&mut self) -> Result<battery::BatteryStatus, Error> {
+        let request = [0x11, 0xff, 0x08, 0x01];
+        Ok(battery::BatteryStatus::from_bytes(
+            &self.raw_request(&request)?,
+        ))
     }
 
     /// Set a listener for button presses/releases (g1, g2, g3)

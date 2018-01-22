@@ -5,11 +5,11 @@ from heapq import nsmallest
 # A map of voltages in mV to SoCs
 soc_map = {
     # Discharging voltage mappings
-    1: OrderedDict((float(x), float(y)) for (x, y) in csv.reader(open("libg933/src/discharging.csv"))),
+    1: OrderedDict((int(x), float(y)) for (x, y) in csv.reader(open("libg933/src/discharging.csv"))),
 
     # Charging voltage mappings
     # TODO: possibly monitor ascending/descending status to get proper estimates
-    3: OrderedDict((float(x), float(y)) for (x, y) in csv.reader(open("libg933/src/charging_ascending.csv"))),
+    3: OrderedDict((int(x), float(y)) for (x, y) in csv.reader(open("libg933/src/charging_ascending.csv"))),
     #?: OrderedDict((float(x), float(y)) for (x, y) in csv.reader(open("libg933/src/charging_descending.csv"))),
 
     # Full voltage mappings
@@ -19,7 +19,7 @@ soc_map = {
 # Execute the command to retrieve battery info
 b = subprocess.Popen(["target/release/g933-utils", "raw", "11", "ff", "08", "00"], stdout = subprocess.PIPE).stdout.read().split(b" ")
 # Get voltage as a float in volts
-voltage = float(int(b"".join(b[4:6]), 16)) / 1000.0
+voltage = int(b"".join(b[4:6]), 16)
 print("voltage:", voltage)
 
 # Get charging state as an int

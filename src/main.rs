@@ -61,6 +61,7 @@ fn run() -> Result<(), Error> {
         let mut device = libg933::find_devices()?.remove(devnum);
 
         match property {
+            "battery" => println!("{:?}", device.get_battery_status()?),
             p => println!("Invalid property: {}", p),
         }
     }
@@ -109,7 +110,10 @@ fn run() -> Result<(), Error> {
                     .collect::<Vec<String>>()
                     .join(" ")
             ),
-            "string" => println!("{}", String::from_utf8_lossy(&device.raw_request(&request)?)),
+            "string" => println!(
+                "{}",
+                String::from_utf8_lossy(&device.raw_request(&request)?)
+            ),
             format => bail!("Invalid format: {}", format),
         }
     }
