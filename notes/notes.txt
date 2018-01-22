@@ -1,37 +1,106 @@
 # All numbers are in hex, unless otherwise specified
 # 'x' in a number indicates that the digit is unspecified or is unimportant, such as the appid nibble in the request header
 # '#' indicates the start of a comment
+
+##############################
+########## Features ##########
+##############################
+
+0x0000: root feature (https://lekensteyn.nl/files/logitech/x0000_root.html)
+- index: 0x00
+- fnids:
+  - 1: get_feature(feature: u16) -> (index: u8, type: u8, version: u8)
+  - 2: get_protocol_version() -> (protocol_num: u8, target_sw u8, ping_data: u8)
+
+0x0001: feature set (https://git.lekensteyn.nl/ltunify/tree/hidpp20.c)
+- index: 0x01
+- fnids:
+  - 0: get_feature_count() -> (count: u8)
+  - 1: get_feature_id(index: u8) -> (id: u16)
+
+0x0003 device information (https://lekensteyn.nl/files/logitech/x0003_deviceinfo.html)
+- index: 0x02
+- fnids:
+  - 0: get_device_info() -> (entity_cnt: u8, unit_id: [u8; 4], transport: [u8; 2], model_id: [u8; 6])
+  - 1: get_fw_info(entity_index: u8) -> (type: u8, fw_name: ([char; 3], bcd8), rev: bcd8, build: bcd16, active: bool, transport_pid: u16, extra_ver: [u8; 5])
+
+0x0005: device name/type (https://git.lekensteyn.nl/ltunify/tree/hidpp20.c)
+- index: 0x03
+- fnids:
+  - 0: ?get_count
+  - 1: get_device_name(part_index: u8) -> (part: [char; 16])
+  - 2: ?get_type
+
+0x1f20: ????
+- index: 0x08
+- fnids:
+  - 0: get_battery_status() -> (voltage: u16, status: u8)
+
+0x8010: gkey
+- index: 0x05
+- fnids:
+  - 0: get_count() -> (count: u8)
+  - 2: set_report_buttons(report: bool) -> (report: bool)
+
+0x8070: lights
+- index: 0x04
+- fnids:
+  - 0: ????
+  - 1: ????
+  - 2: ????
+  - 3: set_lights(lights: LightConfig) -> (lights: LightConfig)
+  - 8: ????
+  - d: ????
+  - e: ????
+
+0x8300: sidetone
+- index: 0x07
+- fnids:
+  - 0: get_sidetone_volume() -> (volume: u8)
+  - 1: set_sidetone_volume(volume: u8) -> (volume: u8)
+
+0x8310: equalizer
+- index: 0x06
+- fnids:
+  - 0: ????
+  - 1: ????
+  - 2: ????
+
+##############################
+########## Requests ##########
+##############################
+
 # [xx xx ..] is a set of bytes
 # [xx xx] on the start of a line means any lines starting with '-' following will begin with those bytes
 # Lines with "- [xx] : [xx]" indicate a request/response. The set of bytes before the ':' is the request, the set following is a response
 # Responses do not necessarily require a request; those that do not will appear like "- : [xx xx ..]"
+[01 0x] # get_feature_count
 
-[01 0x]
 - [] : [08]
 
-[01 1x]
+[01 1x] # get_feature_id
 - [04] : [80 70]
 - [05] : [80 10]
 - [06] : [83 10]
 - [07] : [83 00]
 - [08] : [1f 20]
 
-[02:0x]
+[02:0x] # get_device_info
 - [] : [01 ff ff ff ff 00 03 00 00 00 00 00 0a 5b]
 
-[02 1x]
+[02 1x] # get_fw_info
 - [] : [00 55 20 20 98 03 00 27 01 0a 5b]
 
-[03 0x]
+[03 0x] # ?get_count
 - [] : [25]
 
-[03 1x]
+[03 1x] # get_device_name
 # Obviously gets the name of the device
 - [00] : "Logitech G933 Ga"
 - [01] : "ming Wireless He"
 - [02] : "adset"
 
-[03 2x]
+[03 2x] # ?get_type
 - [] : [08]
 
 [04 0x]
@@ -51,21 +120,24 @@
 - [01 02] : [01 02 00 0a c1 15 00 04]
 - [01 03] : [01 03 00 03 c0 05 00 06]
 
-[04 3x]
-- [00] : [00]
-- [01] : [01]
+[04 3x] # set_lights
+# Refer to libg933/src/lights.rs for more info
 
 [04 8x]
-- [01:01] : [01:01]
+- [01 01] : [01 01] # logitechgaming_startup
+- [00 00] : [00 00] # logitechgaming_shutdown
+
+[04 dx]
+# Found on my own
 
 [04 ex]
-- [00 00] : [00 00 00]
-- [00 01] : [00 00 fc]
-- [01 00] : [01 00 00]
-- [01 01] : [01 00 fc]
+- [00 00] : [00 03 00 00 00 00 00 13 88 64]
+- [00 01] : [00 00 00 00 00 00 00 27 10 64]
+- [01 00] : [01 03 00 00 00 00 00 13 88 64]
+- [01 01] : [01 00 00 00 00 00 00 00 00 00]
 
-[05 0x]
-# Possibly reports number of buttons? Unclear, but always returns 3
+[05 0x] # get_count
+# Possibly reports number of buttons? Unclear, but seems to always return 3
 - [] : [03]
 
 # From g*.pcapng
@@ -75,7 +147,11 @@
 - : [02] # G2
 - : [04] # G3
 
-[05 2x]
+[05 1x]
+# Found on my own
+- [] : [01]
+
+[05 2x] # set_report_buttons
 # Turns button reporting on (01) or off (00)
 - [01] : [01] # From logitchgaming_startup.pcapng
 - [00] : [00] # From logitechgaming_shutdown.pcapng
@@ -83,29 +159,24 @@
 [06 0x]
 - [] : [0a 0c 01]
 
+[06 1x]
+# Found on my own
+- [] : [00 20 00 40 00 7d 00 fa 01 f4 03 e8 07 d0]
+
 [06 2x]
 # Unknown how long the parameters or return values are, it is called once during LGS startup
 - [] : []
 
-[07 1x]
+[07 1x] # set_sidetone_volume
 # From logitechgaming_startup.pcapng
 - [0a] : [0a]
 
 [08 0x]
-# From logitechgaming_startup.pcapng
-- [] : [0e 72 01]
+# Bytes 5 and 6 are a u16 indicating voltage
+# Logitech Gaming Software has XML files containing battery discharge curve LUTs for wireless devices
 
-# From battery_draining.pcapng
-# No requests were made here
-- : [0e e7 01]
-- : [0e e8 01]
-- : [0e e6 01]
-- : [0e e6 01]
-- : [0e e5 01]
-- : [0e e4 01]
-- : [0e e3 01]
-- : [0e e3 01]
-- : [0e e1 01]
-- : [0e e1 01]
-- : [0e e1 01]
-- : [0e e1 01]
+# Byte 7 seems to be charging status:
+# 1 when unplugged, 3 when plugged in, possibly other statuses too?
+
+# The device interrupts with this code and no arguments when turning off
+- : [00 00 00]

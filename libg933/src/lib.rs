@@ -1,26 +1,4 @@
-//! # Features
-//!
-//! - 0x0000: root feature ([documentation][0000])
-//!   - index: 0x00
-//! - 0x0001: ????
-//!   - index: 0x01
-//! - 0x0003 device information ([documentation][0003])
-//!   - index: 0x02
-//! - 0x0005: ????
-//!   - index: 0x03
-//! - 0x1f20: ????
-//!   - index: 0x08
-//! - 0x8010: ????
-//!   - index: 0x05
-//! - 0x8070: ????
-//!   - index: 0x04
-//! - 0x8300: ????
-//!   - index: 0x07
-//! - 0x8310: ????
-//!   - index: 0x06
-//!
-//! [0000]: https://lekensteyn.nl/files/logitech/x0000_root.html
-//! [0003]: https://lekensteyn.nl/files/logitech/x0003_deviceinfo.html
+//! A program to configure and control the Logitech G933 Gaming Headset
 
 #![feature(drain_filter)]
 #![warn(missing_docs)]
