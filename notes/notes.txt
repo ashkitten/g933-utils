@@ -31,7 +31,7 @@
   - 1: get_device_name(part_index: u8) -> (part: [char; 16])
   - 2: ?get_type
 
-0x1f20: ????
+0x1f20: battery status
 - index: 0x08
 - fnids:
   - 0: get_battery_status() -> (voltage: u16, status: u8)

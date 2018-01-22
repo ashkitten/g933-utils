@@ -4,9 +4,16 @@ from heapq import nsmallest
 
 # A map of voltages in mV to SoCs
 soc_map = {
+    # Discharging voltage mappings
     1: OrderedDict((float(x), float(y)) for (x, y) in csv.reader(open("libg933/src/discharging.csv"))),
+
+    # Charging voltage mappings
+    # TODO: possibly monitor ascending/descending status to get proper estimates
     3: OrderedDict((float(x), float(y)) for (x, y) in csv.reader(open("libg933/src/charging_ascending.csv"))),
     #?: OrderedDict((float(x), float(y)) for (x, y) in csv.reader(open("libg933/src/charging_descending.csv"))),
+
+    # Full voltage mappings
+    7: OrderedDict(((0, 100), (1, 100))), # Hack to return 100% for "full" status
 }
 
 # Execute the command to retrieve battery info
