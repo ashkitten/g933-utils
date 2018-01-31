@@ -141,7 +141,7 @@ impl Device {
                 ensure!(
                     response[2] == 0xaf,
                     "Ping response did not match the request: was {}",
-                    response[2]
+                    response[2],
                 );
                 Ok((response[4], response[5]))
             }
@@ -165,15 +165,15 @@ impl Device {
     }
 
     /// Set button reporting on or off
-    pub fn set_report_buttons(&mut self, report_buttons: bool) -> Result<(), Error> {
-        let request = [0x11, 0xff, 0x05, 0x21, report_buttons as u8];
+    pub fn enable_report_buttons(&mut self, enable: bool) -> Result<(), Error> {
+        let request = [0x11, 0xff, 0x05, 0x21, enable as u8];
         match self.raw_request(&request) {
             Ok(response) => {
                 ensure!(
-                    response[4] == report_buttons as u8,
-                    "set_report_buttons response did not match the request: expected {}, was {}",
-                    report_buttons as u8,
-                    response[4]
+                    response[4] == enable as u8,
+                    "enable_report_buttons response did not match the request: expected {}, was {}",
+                    enable as u8,
+                    response[4],
                 );
                 Ok(())
             }
@@ -196,7 +196,7 @@ impl Device {
                     response[4] == volume,
                     "set_sidetone_volume response did not match request: expected {}, was {}",
                     volume,
-                    response[4]
+                    response[4],
                 );
                 Ok(())
             }
@@ -210,6 +210,27 @@ impl Device {
         Ok(battery::BatteryStatus::from_bytes(
             &self.raw_request(&request)?,
         ))
+    }
+
+    /// Set startup effect on or off
+    pub fn enable_startup_effect(&mut self, enable: bool) -> Result<(), Error> {
+        let enable_byte = match enable {
+            true => 0x01,
+            false => 0x02,
+        };
+        let request = [0x11, 0xff, 0x04, 0x51, 0x00, 0x01, enable_byte];
+        match self.raw_request(&request) {
+            Ok(response) => {
+                ensure!(
+                    response[6] == enable_byte,
+                    "enable_startup_effect response did not match the request: expected {}, was {}",
+                    enable_byte,
+                    response[6],
+                );
+                Ok(())
+            }
+            Err(error) => Err(error),
+        }
     }
 
     /// Set a listener for button presses/releases (g1, g2, g3)

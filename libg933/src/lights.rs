@@ -136,7 +136,7 @@ impl FromBytes for Config {
             bytes[1]
         );
         assert!(
-            bytes[12] == 0 || bytes[11] == 2,
+            bytes[12] == 0 || bytes[12] == 2,
             "Light profile type was out of range: was {}",
             bytes[12]
         );

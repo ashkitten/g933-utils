@@ -40,7 +40,7 @@
 - index: 0x05
 - fnids:
   - 0: get_count() -> (count: u8)
-  - 2: set_report_buttons(report: bool) -> (report: bool)
+  - 2: enable_report_buttons(enable: bool) -> (enable: bool)
 
 0x8070: lights
 - index: 0x04
@@ -49,6 +49,7 @@
   - 1: ????
   - 2: ????
   - 3: set_lights(lights: LightConfig) -> (lights: LightConfig)
+  - 5: enable_startup_effect(??: u8, ??: u8, enable: bool) -> (??: u8, ??: u8, enable: bool)
   - 8: ????
   - d: ????
   - e: ????
@@ -123,6 +124,10 @@
 [04 3x] # set_lights
 # Refer to libg933/src/lights.rs for more info
 
+[04 5x] # enable_startup_effect
+- [00 01 01] : [00 01 01] # Enable startup effect
+- [00 01 02] : [00 01 02] # Disable startup effect
+
 [04 8x]
 - [01 01] : [01 01] # logitechgaming_startup
 - [00 00] : [00 00] # logitechgaming_shutdown
@@ -151,7 +156,7 @@
 # Found on my own
 - [] : [01]
 
-[05 2x] # set_report_buttons
+[05 2x] # enable_report_buttons
 # Turns button reporting on (01) or off (00)
 - [01] : [01] # From logitchgaming_startup.pcapng
 - [00] : [00] # From logitechgaming_shutdown.pcapng

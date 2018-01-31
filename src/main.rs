@@ -44,6 +44,7 @@ fn run() -> Result<(), Error> {
                 Valid options for `property` are:
                     report_buttons (bool)
                     sidetone_volume (0 - 100)
+                    startup_effect (bool)
             "))
         )
         .subcommand(SubCommand::with_name("raw")
@@ -88,13 +89,17 @@ fn run() -> Result<(), Error> {
 
         match property {
             "report_buttons" => {
-                let reports = value.parse::<bool>()?;
-                device.set_report_buttons(reports)?;
+                let enable = value.parse::<bool>()?;
+                device.enable_report_buttons(enable)?;
             }
             "sidetone_volume" => {
                 let volume = value.parse::<u8>()?;
                 assert!(volume <= 100);
                 device.set_sidetone_volume(volume)?;
+            }
+            "startup_effect" => {
+                let enable = value.parse::<bool>()?;
+                device.enable_startup_effect(enable)?;
             }
             p => println!("Invalid property: {}", p),
         }
