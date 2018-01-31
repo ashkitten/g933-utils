@@ -139,9 +139,9 @@ impl Device {
         match self.raw_request(&request) {
             Ok(response) => {
                 ensure!(
-                    response[2] == 0xaf,
+                    response[6] == 0xaf,
                     "Ping response did not match the request: was {}",
-                    response[2],
+                    response[6],
                 );
                 Ok((response[4], response[5]))
             }
