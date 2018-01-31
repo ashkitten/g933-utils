@@ -70,7 +70,14 @@ impl Device {
                 }
 
                 if let Some(sender) = requests.remove(&data[..4]) {
-                    debug!("Got data from device: {:?}", data);
+                    debug!(
+                        "Got data from device: {}",
+                        data
+                            .iter()
+                            .map(|b| format!("{:02x}", b))
+                            .collect::<Vec<String>>()
+                            .join(" ")
+                    );
                     sender.send(data).unwrap();
                 }
             }
@@ -110,7 +117,14 @@ impl Device {
 
         loop {
             self.file.write(&data)?;
-            debug!("Sent data to device: {:?}", data);
+            debug!(
+                "Sent data to device: {}",
+                data
+                    .iter()
+                    .map(|b| format!("{:02x}", b))
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            );
             match receiver.recv_timeout(Duration::from_secs(2)) {
                 Ok(response) => return Ok(response),
                 Err(mpsc::RecvTimeoutError::Timeout) => (),
