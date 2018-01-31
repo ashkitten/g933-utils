@@ -251,11 +251,14 @@ pub fn find_devices() -> Result<Vec<Device>, Error> {
     Ok(enumerator
         .scan_devices()?
         .map(|parent| -> Result<_, Error> {
+            info!("Found usb device: {}", parent.sysname().to_str().unwrap());
+
             let mut enumerator = udev::Enumerator::new(&context)?;
             enumerator.match_subsystem("hidraw")?;
             enumerator.match_parent(&parent)?;
             Ok(enumerator.scan_devices()?.filter_map(|device| {
                 if let Some(devnode) = device.devnode() {
+                    info!("Found hidraw device node: {}", devnode.to_str().unwrap());
                     Some(Device::new(devnode).unwrap())
                 } else {
                     None
