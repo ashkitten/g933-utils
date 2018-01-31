@@ -1,0 +1,2 @@
+SUBSYSTEM=="usb", ATTRS{idVendor}=="046d", GROUP="logitech"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", GROUP="logitech"
