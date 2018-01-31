@@ -125,9 +125,21 @@ impl FromBytes for Config {
     fn from_bytes(bytes: &[u8]) -> Self {
         let bytes = bytes.as_ref();
 
-        assert!(bytes[0] <= 1);
-        assert!(bytes[1] <= 3);
-        assert!(bytes[11] == 0 || bytes[11] == 2);
+        assert!(
+            bytes[0] <= 1,
+            "Light index is out of range: was {}",
+            bytes[0]
+        );
+        assert!(
+            bytes[1] <= 3,
+            "Light effect is out of range: was {}",
+            bytes[1]
+        );
+        assert!(
+            bytes[12] == 0 || bytes[11] == 2,
+            "Light profile type was out of range: was {}",
+            bytes[12]
+        );
 
         Self {
             light: match bytes[0] {

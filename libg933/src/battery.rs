@@ -114,11 +114,14 @@ impl FromBytes for BatteryStatus {
             closest_charges.0, closest_charges.1
         );
 
-        let slope = ((voltage - closest_voltages.0) as f32) / ((closest_voltages.1 - closest_voltages.0) as f32);
+        let slope = ((voltage - closest_voltages.0) as f32)
+            / ((closest_voltages.1 - closest_voltages.0) as f32);
 
         debug!("Voltage graph slope: {}", slope);
 
-        let charge = (((closest_charges.1 - closest_charges.0) * slope) + closest_charges.0).min(0.0).max(100.0);
+        let charge = (((closest_charges.1 - closest_charges.0) * slope) + closest_charges.0)
+            .min(0.0)
+            .max(100.0);
 
         debug!("Charge: {}", charge);
 

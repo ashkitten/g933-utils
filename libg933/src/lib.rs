@@ -3,6 +3,7 @@
 #![feature(drain_filter)]
 #![warn(missing_docs)]
 
+#[macro_use]
 extern crate failure;
 #[macro_use]
 extern crate lazy_static;
@@ -82,7 +83,7 @@ impl Device {
     pub fn raw_request(&mut self, request: &[u8]) -> Result<[u8; 20], Error> {
         use std::io::Write;
 
-        assert!(request.len() <= 20);
+        ensure!(request.len() <= 20, "Request is longer than 20 bytes");
 
         let mut data = [0u8; 20];
         data[..request.len()].copy_from_slice(request);
@@ -134,11 +135,18 @@ impl Device {
 
     /// Get protocol version of device
     pub fn get_protocol_version(&mut self) -> Result<(u8, u8), Error> {
-        let request = [0x11, 0xff, 0x00, 0x11, 0x00, 0x00, 0xee];
-        self.raw_request(&request).map(|response| {
-            assert_eq!(0xee, response[2]);
-            (response[4], response[5])
-        })
+        let request = [0x11, 0xff, 0x00, 0x11, 0x00, 0x00, 0xaf];
+        match self.raw_request(&request) {
+            Ok(response) => {
+                ensure!(
+                    response[2] == 0xaf,
+                    "Ping response did not match the request: was {}",
+                    response[2]
+                );
+                Ok((response[4], response[5]))
+            }
+            Err(error) => Err(error),
+        }
     }
 
     /// Get device info
@@ -159,8 +167,18 @@ impl Device {
     /// Set button reporting on or off
     pub fn set_report_buttons(&mut self, report_buttons: bool) -> Result<(), Error> {
         let request = [0x11, 0xff, 0x05, 0x21, report_buttons as u8];
-        self.raw_request(&request)
-            .map(move |response| assert_eq!(report_buttons as u8, response[4]))
+        match self.raw_request(&request) {
+            Ok(response) => {
+                ensure!(
+                    response[4] == report_buttons as u8,
+                    "set_report_buttons response did not match the request: expected {}, was {}"
+                    report_buttons as u8,
+                    response[4]
+                );
+                Ok(())
+            }
+            Err(error) => Err(error),
+        }
     }
 
     /// Set light configuration
@@ -172,8 +190,18 @@ impl Device {
     /// Set sidetone volume
     pub fn set_sidetone_volume(&mut self, volume: u8) -> Result<(), Error> {
         let request = [0x11, 0xff, 0x07, 0x11, volume];
-        self.raw_request(&request)
-            .map(move |response| assert_eq!(volume, response[4]))
+        match self.raw_request(&request) {
+            Ok(response) => {
+                ensure!(
+                    response[4] == volume,
+                    "set_sidetone_volume response did not match request: expected {}, was {}"
+                    volume,
+                    response[4]
+                );
+                Ok(())
+            }
+            Err(error) => Err(error),
+        }
     }
 
     /// Get battery status and level
