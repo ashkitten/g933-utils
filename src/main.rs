@@ -76,7 +76,19 @@ fn run() -> Result<(), Error> {
         let mut device = libg933::find_devices()?.remove(devnum);
 
         match property {
-            "battery" => println!("{:?}", device.get_battery_status()?),
+            "battery" => {
+                use libg933::battery::ChargingStatus::*;
+
+                let battery_status = device.get_battery_status()?;
+                let charging_status = match battery_status.charging_status {
+                    Discharging => "discharging",
+                    Charging(false) => "charging (ascending)",
+                    Charging(true) => "charging (descending)",
+                    Full => "full",
+                };
+
+                println!("Status: {:.01}% [{}]", battery_status.charge, charging_status);
+            }
             p => println!("Invalid property: {}", p),
         }
     }

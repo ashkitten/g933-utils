@@ -65,11 +65,11 @@ pub enum ChargingStatus {
 #[derive(Debug)]
 pub struct BatteryStatus {
     /// Charging status
-    charging_status: ChargingStatus,
+    pub charging_status: ChargingStatus,
     /// Battery voltage
-    voltage: u16,
+    pub voltage: u16,
     /// Charge percentage
-    charge: f32,
+    pub charge: f32,
 }
 
 impl FromBytes for BatteryStatus {
