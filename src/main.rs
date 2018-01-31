@@ -2,6 +2,8 @@ extern crate clap;
 extern crate env_logger;
 #[macro_use]
 extern crate failure;
+#[macro_use]
+extern crate indoc;
 extern crate libg933;
 #[macro_use]
 extern crate log;
@@ -16,13 +18,20 @@ fn run() -> Result<(), Error> {
         .about("Configure and control the Logitech G933 Gaming Headset")
         .subcommand(SubCommand::with_name("list")
             .about("List attached devices")
-       )
+        )
+        .after_help(indoc!("
+            Use --help with any subcommand for more information
+        "))
         .subcommand(SubCommand::with_name("get")
             .about("Get a property of a device")
             .args_from_usage("
                 -d, --device [device] 'Device to get property from'
                 <property>            'Property to get'
             ")
+            .after_help(indoc!("
+                Valid options for `property` are:
+                    battery
+            "))
         )
         .subcommand(SubCommand::with_name("set")
             .about("Set a property of a device")
@@ -31,6 +40,11 @@ fn run() -> Result<(), Error> {
                 <property>            'Property to set'
                 <value>               'Value of property'
             ")
+            .after_help(indoc!("
+                Valid options for `property` are:
+                    report_buttons (bool)
+                    sidetone_volume (0 - 100)
+            "))
         )
         .subcommand(SubCommand::with_name("raw")
             .about("Send a raw request to a device")
@@ -39,9 +53,9 @@ fn run() -> Result<(), Error> {
                 -f, --format [format] 'Response format'
                 <request>...          'Bytes of request separated by spaces'
             ")
-            .after_help("\
-                NOTE: The bytes of the request will always be parsed as base 16\n\
-            ")
+            .after_help(indoc!("
+                NOTE: The bytes of the request will always be parsed as base 16
+            "))
         )
         .get_matches();
 
