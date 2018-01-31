@@ -171,7 +171,7 @@ impl Device {
             Ok(response) => {
                 ensure!(
                     response[4] == report_buttons as u8,
-                    "set_report_buttons response did not match the request: expected {}, was {}"
+                    "set_report_buttons response did not match the request: expected {}, was {}",
                     report_buttons as u8,
                     response[4]
                 );
@@ -194,7 +194,7 @@ impl Device {
             Ok(response) => {
                 ensure!(
                     response[4] == volume,
-                    "set_sidetone_volume response did not match request: expected {}, was {}"
+                    "set_sidetone_volume response did not match request: expected {}, was {}",
                     volume,
                     response[4]
                 );
