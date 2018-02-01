@@ -1,3 +1,6 @@
+// Because otherwise clippy will warn us on use of format_err!, and I want to keep it consistent
+#![cfg_attr(feature = "cargo-clippy", allow(useless_format))]
+
 extern crate clap;
 extern crate env_logger;
 #[macro_use]
@@ -42,9 +45,20 @@ fn run() -> Result<(), Error> {
             ")
             .after_help(indoc!("
                 Valid options for `property` are:
-                    report_buttons (bool)
+                    buttons (bool)
                     sidetone_volume (0 - 100)
                     startup_effect (bool)
+            "))
+        )
+        .subcommand(SubCommand::with_name("watch")
+            .about("Watch for events")
+            .args_from_usage("
+                -d, --device [device] 'Device to watch'
+                <event>               'Event to watch for'
+            ")
+            .after_help(indoc!("
+                Valid options for `event` are:
+                    buttons
             "))
         )
         .subcommand(SubCommand::with_name("raw")
@@ -60,7 +74,7 @@ fn run() -> Result<(), Error> {
         )
         .get_matches();
 
-    if let Some(_) = matches.subcommand_matches("list") {
+    if matches.subcommand_matches("list").is_some() {
         for (sysname, mut device) in libg933::find_devices()? {
             println!("Device {}: {}", sysname, device.get_device_name()?);
         }
@@ -72,11 +86,11 @@ fn run() -> Result<(), Error> {
         let mut device = match matches.value_of("device") {
             Some(sysname) => devices
                 .get_mut(sysname)
-                .ok_or(format_err!("No such device: {}", sysname))?,
+                .ok_or_else(|| format_err!("No such device: {}", sysname))?,
             None => devices
                 .values_mut()
                 .next()
-                .ok_or(format_err!("No devices found"))?,
+                .ok_or_else(|| format_err!("No devices found"))?,
         };
 
         match property {
@@ -107,17 +121,17 @@ fn run() -> Result<(), Error> {
         let mut device = match matches.value_of("device") {
             Some(sysname) => devices
                 .get_mut(sysname)
-                .ok_or(format_err!("No such device: {}", sysname))?,
+                .ok_or_else(|| format_err!("No such device: {}", sysname))?,
             None => devices
                 .values_mut()
                 .next()
-                .ok_or(format_err!("No devices found"))?,
+                .ok_or_else(|| format_err!("No devices found"))?,
         };
 
         match property {
-            "report_buttons" => {
+            "buttons" => {
                 let enable = value.parse::<bool>()?;
-                device.enable_report_buttons(enable)?;
+                device.enable_buttons(enable)?;
             }
             "sidetone_volume" => {
                 let volume = value.parse::<u8>()?;
@@ -132,17 +146,40 @@ fn run() -> Result<(), Error> {
         }
     }
 
+    if let Some(matches) = matches.subcommand_matches("watch") {
+        let event = matches.value_of("event").unwrap();
+        let mut devices = libg933::find_devices()?;
+        let mut device = match matches.value_of("device") {
+            Some(sysname) => devices
+                .get_mut(sysname)
+                .ok_or_else(|| format_err!("No such device: {}", sysname))?,
+            None => devices
+                .values_mut()
+                .next()
+                .ok_or_else(|| format_err!("No devices found"))?,
+        };
+
+        match event {
+            "buttons" => {
+                device.watch_buttons(|buttons| {
+                    println!("g1: {}, g2: {}, g3: {}", buttons.g1, buttons.g2, buttons.g3);
+                })?;
+            }
+            e => println!("Invalid event: {}", e),
+        }
+    }
+
     if let Some(matches) = matches.subcommand_matches("raw") {
         let format = matches.value_of("format").unwrap_or("bytes");
         let mut devices = libg933::find_devices()?;
         let mut device = match matches.value_of("device") {
             Some(sysname) => devices
                 .get_mut(sysname)
-                .ok_or(format_err!("No such device: {}", sysname))?,
+                .ok_or_else(|| format_err!("No such device: {}", sysname))?,
             None => devices
                 .values_mut()
                 .next()
-                .ok_or(format_err!("No devices found"))?,
+                .ok_or_else(|| format_err!("No devices found"))?,
         };
 
         let request = matches

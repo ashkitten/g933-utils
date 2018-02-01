@@ -123,8 +123,6 @@ impl AsBytes for Config {
 
 impl FromBytes for Config {
     fn from_bytes(bytes: &[u8]) -> Self {
-        let bytes = bytes.as_ref();
-
         assert!(
             bytes[0] <= 1,
             "Light index is out of range: was {}",
@@ -158,11 +156,11 @@ impl FromBytes for Config {
                     red: bytes[2],
                     green: bytes[3],
                     blue: bytes[4],
-                    rate: ((bytes[5] as u16) << 8) & (bytes[6] as u16),
+                    rate: (u16::from(bytes[5]) << 8) & u16::from(bytes[6]),
                     brightness: bytes[8],
                 },
                 3 => Effect::ColorCycle {
-                    rate: ((bytes[7] as u16) << 8) & (bytes[8] as u16),
+                    rate: (u16::from(bytes[7]) << 8) & u16::from(bytes[8]),
                     brightness: bytes[9],
                 },
                 _ => unreachable!(),

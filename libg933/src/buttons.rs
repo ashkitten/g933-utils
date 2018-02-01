@@ -1,9 +1,16 @@
+//! Structs to represent button status
+
 use {AsBytes, FromBytes};
 
+/// Contains a bool for each button, to show if it is pressed
+#[derive(Debug)]
 pub struct Buttons {
-    g1: bool,
-    g2: bool,
-    g3: bool,
+    /// If g1 button is pressed
+    pub g1: bool,
+    /// If g2 button is pressed
+    pub g2: bool,
+    /// If g3 button is pressed
+    pub g3: bool,
 }
 
 impl AsBytes for Buttons {

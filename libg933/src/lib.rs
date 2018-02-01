@@ -1,7 +1,9 @@
 //! A program to configure and control the Logitech G933 Gaming Headset
 
-#![feature(drain_filter)]
+// Warn on missing documentation
 #![warn(missing_docs)]
+// Because otherwise clippy will warn us on use of format_err!, and I want to keep it consistent
+#![cfg_attr(feature = "cargo-clippy", allow(useless_format))]
 
 #[macro_use]
 extern crate failure;
@@ -15,17 +17,20 @@ extern crate udev;
 mod macros;
 pub mod battery;
 pub mod buttons;
+pub mod device_info;
 pub mod lights;
 
 use failure::Error;
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::path::Path;
+use std::str;
 use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use std::str;
+
+type RequestsMap = HashMap<[u8; 4], Sender<[u8; 20]>>;
 
 /// Convert a struct that implements this trait to bytes
 pub trait AsBytes {
@@ -42,7 +47,7 @@ pub trait FromBytes {
 /// Contains a `HidDevice` and a vector of requests to be processed
 pub struct Device {
     file: File,
-    requests: Arc<Mutex<HashMap<[u8; 4], Sender<[u8; 20]>>>>,
+    requests: Arc<Mutex<RequestsMap>>,
 }
 
 impl Device {
@@ -116,7 +121,7 @@ impl Device {
         }
 
         loop {
-            self.file.write(&data)?;
+            self.file.write_all(&data)?;
             debug!(
                 "Sent data to device: {}",
                 data.iter()
@@ -163,17 +168,10 @@ impl Device {
     }
 
     /// Get device info
-    pub fn get_device_info(&mut self) -> Result<(u8, [u8; 4], [u8; 2], [u8; 6]), Error> {
+    pub fn get_device_info(&mut self) -> Result<device_info::DeviceInfo, Error> {
         let request = [0x11, 0xff, 0x02, 0x01];
         self.raw_request(&request).map(|response| {
-            let entity_cnt = response[4];
-            let mut unit_id = [0; 4];
-            unit_id.copy_from_slice(&response[5..9]);
-            let mut transport = [0; 2];
-            transport.copy_from_slice(&response[9..11]);
-            let mut model_id = [0; 6];
-            model_id.copy_from_slice(&response[11..17]);
-            (entity_cnt, unit_id, transport, model_id)
+            device_info::DeviceInfo::from_bytes(&response[4..])
         })
     }
 
@@ -191,21 +189,32 @@ impl Device {
         }
 
         // Trim null characters off the end
-        name = name.trim_right_matches("\0").to_string();
+        name = name.trim_right_matches('\0').to_string();
 
         Ok(name)
     }
 
-    /// Set button reporting on or off
-    pub fn enable_report_buttons(&mut self, enable: bool) -> Result<(), Error> {
-        let request = [0x11, 0xff, 0x05, 0x21, enable as u8];
+    /// Set light configuration
+    pub fn set_lights(&mut self, lights: &lights::Config) -> Result<lights::Config, Error> {
+        let request = v![0x11, 0xff, 0x04, 0x31, @lights.as_bytes()];
+        Ok(lights::Config::from_bytes(&self.raw_request(&request)?))
+    }
+
+    /// Set startup effect on or off
+    pub fn enable_startup_effect(&mut self, enable: bool) -> Result<(), Error> {
+        let enable_byte = if enable {
+            0x01
+        } else {
+            0x02
+        };
+        let request = [0x11, 0xff, 0x04, 0x51, 0x00, 0x01, enable_byte];
         match self.raw_request(&request) {
             Ok(response) => {
                 ensure!(
-                    response[4] == enable as u8,
-                    "enable_report_buttons response did not match the request: expected {}, was {}",
-                    enable as u8,
-                    response[4],
+                    response[6] == enable_byte,
+                    "enable_startup_effect response did not match the request: expected {}, was {}",
+                    enable_byte,
+                    response[6],
                 );
                 Ok(())
             }
@@ -213,10 +222,21 @@ impl Device {
         }
     }
 
-    /// Set light configuration
-    pub fn set_lights(&mut self, lights: lights::Config) -> Result<lights::Config, Error> {
-        let request = v![0x11, 0xff, 0x04, 0x31, @lights.as_bytes()];
-        Ok(lights::Config::from_bytes(&self.raw_request(&request)?))
+    /// Set button reporting on or off
+    pub fn enable_buttons(&mut self, enable: bool) -> Result<(), Error> {
+        let request = [0x11, 0xff, 0x05, 0x21, enable as u8];
+        match self.raw_request(&request) {
+            Ok(response) => {
+                ensure!(
+                    response[4] == enable as u8,
+                    "enable_buttons response did not match the request: expected {}, was {}",
+                    enable as u8,
+                    response[4],
+                );
+                Ok(())
+            }
+            Err(error) => Err(error),
+        }
     }
 
     /// Set sidetone volume
@@ -244,31 +264,26 @@ impl Device {
         ))
     }
 
-    /// Set startup effect on or off
-    pub fn enable_startup_effect(&mut self, enable: bool) -> Result<(), Error> {
-        let enable_byte = match enable {
-            true => 0x01,
-            false => 0x02,
-        };
-        let request = [0x11, 0xff, 0x04, 0x51, 0x00, 0x01, enable_byte];
-        match self.raw_request(&request) {
-            Ok(response) => {
-                ensure!(
-                    response[6] == enable_byte,
-                    "enable_startup_effect response did not match the request: expected {}, was {}",
-                    enable_byte,
-                    response[6],
-                );
-                Ok(())
-            }
-            Err(error) => Err(error),
-        }
-    }
+    /// Watch for button presses/releases (g1, g2, g3)
+    pub fn watch_buttons(&mut self, callback: fn(buttons::Buttons)) -> Result<(), Error> {
+        let (sender, receiver) = mpsc::channel();
 
-    /// Set a listener for button presses/releases (g1, g2, g3)
-    pub fn listen_buttons(&mut self, callback: fn(buttons::Buttons)) {
-        // TODO: implement
-        unimplemented!();
+        // Loop and keep adding the request to our pending request map
+        loop {
+            // Make sure we drop the lock before we try reading
+            {
+                let mut requests = self.requests.lock().unwrap();
+
+                let header = [0x11, 0xff, 0x05, 0x00];
+                requests.insert(header, sender.clone());
+            }
+
+            match receiver.recv_timeout(Duration::from_secs(2)) {
+                Ok(response) => callback(buttons::Buttons::from_bytes(&response[4..])),
+                Err(mpsc::RecvTimeoutError::Timeout) => (),
+                Err(error) => return Err(error.into()),
+            }
+        }
     }
 }
 
@@ -294,9 +309,9 @@ pub fn find_devices() -> Result<HashMap<String, Device>, Error> {
             Device::new(enumerator
                 .scan_devices()?
                 .next()
-                .ok_or(format_err!("Parent does not contain any hidraw devices"))?
+                .ok_or_else(|| format_err!("Parent does not contain any hidraw devices"))?
                 .devnode()
-                .ok_or(format_err!("Hidraw device does not have a filesystem node"))?)?,
+                .ok_or_else(|| format_err!("Hidraw device does not have a filesystem node"))?)?,
         );
     }
 
