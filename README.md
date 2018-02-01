@@ -12,3 +12,7 @@ and log out and back in, or alternatively just reboot.
 You can build the tool with Cargo by navigating to the git clone directory and executing `cargo build --release`. The executable will now be in the `target/release` directory.
 
 After building, try running `./target/release/g933-utils --help` to see an overview of the commands.
+
+# Support Me
+
+I do a lot of work on this project and others. If you want to support me and my work so I can keep maintaining these projects, please consider becoming a patron: https://patreon.com/ashkitten
