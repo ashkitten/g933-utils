@@ -25,6 +25,7 @@ use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+use std::str;
 
 /// Convert a struct that implements this trait to bytes
 pub trait AsBytes {
@@ -72,8 +73,7 @@ impl Device {
                 if let Some(sender) = requests.remove(&data[..4]) {
                     debug!(
                         "Got data from device: {}",
-                        data
-                            .iter()
+                        data.iter()
                             .map(|b| format!("{:02x}", b))
                             .collect::<Vec<String>>()
                             .join(" ")
@@ -119,8 +119,7 @@ impl Device {
             self.file.write(&data)?;
             debug!(
                 "Sent data to device: {}",
-                data
-                    .iter()
+                data.iter()
                     .map(|b| format!("{:02x}", b))
                     .collect::<Vec<String>>()
                     .join(" ")
@@ -176,6 +175,25 @@ impl Device {
             model_id.copy_from_slice(&response[11..17]);
             (entity_cnt, unit_id, transport, model_id)
         })
+    }
+
+    /// Get device name
+    pub fn get_device_name(&mut self) -> Result<String, Error> {
+        let request = [0x11, 0xff, 0x03, 0x01];
+        let length = self.raw_request(&request)?[4];
+
+        let mut name = String::new();
+        for i in 0..length / 10 {
+            let request = [0x11, 0xff, 0x03, 0x11, i];
+            let response = &self.raw_request(&request)?[4..20]; // blaze it
+                                                                // Safe, probably
+            name += str::from_utf8(response).unwrap();
+        }
+
+        // Trim null characters off the end
+        name = name.trim_right_matches("\0").to_string();
+
+        Ok(name)
     }
 
     /// Set button reporting on or off
@@ -255,38 +273,32 @@ impl Device {
 }
 
 /// Enumerate and initialize devices
-pub fn find_devices() -> Result<Vec<Device>, Error> {
+pub fn find_devices() -> Result<HashMap<String, Device>, Error> {
     let context = udev::Context::new()?;
 
     let mut enumerator = udev::Enumerator::new(&context)?;
     enumerator.match_subsystem("usb")?;
     enumerator.match_attribute("idVendor", "046d")?;
     enumerator.match_attribute("idProduct", "0a5b")?;
-    Ok(enumerator
-        .scan_devices()?
-        .map(|parent| -> Result<_, Error> {
-            info!("Found usb device: {}", parent.sysname().to_str().unwrap());
+    let parents = enumerator.scan_devices()?;
 
-            let mut enumerator = udev::Enumerator::new(&context)?;
-            enumerator.match_subsystem("hidraw")?;
-            enumerator.match_parent(&parent)?;
-            Ok(enumerator.scan_devices()?.filter_map(|device| {
-                if let Some(devnode) = device.devnode() {
-                    info!("Found hidraw device node: {}", devnode.to_str().unwrap());
-                    Some(Device::new(devnode).unwrap())
-                } else {
-                    None
-                }
-            }))
-        })
-        .filter_map(|result| {
-            if let Ok(device) = result {
-                Some(device)
-            } else {
-                error!("{}", result.err().unwrap());
-                None
-            }
-        })
-        .flat_map(|devices| devices)
-        .collect())
+    let mut devices = HashMap::new();
+    for parent in parents {
+        info!("Found usb device: {}", parent.sysname().to_str().unwrap());
+
+        let mut enumerator = udev::Enumerator::new(&context)?;
+        enumerator.match_subsystem("hidraw")?;
+        enumerator.match_parent(&parent)?;
+        devices.insert(
+            parent.sysname().to_string_lossy().to_string(),
+            Device::new(enumerator
+                .scan_devices()?
+                .next()
+                .ok_or(format_err!("Parent does not contain any hidraw devices"))?
+                .devnode()
+                .ok_or(format_err!("Hidraw device does not have a filesystem node"))?)?,
+        );
+    }
+
+    Ok(devices)
 }

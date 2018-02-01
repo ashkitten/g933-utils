@@ -92,7 +92,7 @@
 [02 1x] # get_fw_info
 - [] : [00 55 20 20 98 03 00 27 01 0a 5b]
 
-[03 0x] # ?get_count
+[03 0x] # get_count
 - [] : [25]
 
 [03 1x] # get_device_name

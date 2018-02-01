@@ -61,19 +61,23 @@ fn run() -> Result<(), Error> {
         .get_matches();
 
     if let Some(_) = matches.subcommand_matches("list") {
-        for (i, device) in libg933::find_devices()?.iter_mut().enumerate() {
-            println!(
-                "Device {}, protocol version: {:?}",
-                i,
-                device.get_protocol_version()?
-            );
+        for (sysname, mut device) in libg933::find_devices()? {
+            println!("Device {}: {}", sysname, device.get_device_name()?);
         }
     }
 
     if let Some(matches) = matches.subcommand_matches("get") {
-        let devnum = matches.value_of("device").unwrap_or("0").parse::<usize>()?;
         let property = matches.value_of("property").unwrap();
-        let mut device = libg933::find_devices()?.remove(devnum);
+        let mut devices = libg933::find_devices()?;
+        let mut device = match matches.value_of("device") {
+            Some(sysname) => devices
+                .get_mut(sysname)
+                .ok_or(format_err!("No such device: {}", sysname))?,
+            None => devices
+                .values_mut()
+                .next()
+                .ok_or(format_err!("No devices found"))?,
+        };
 
         match property {
             "battery" => {
@@ -87,17 +91,28 @@ fn run() -> Result<(), Error> {
                     Full => "full",
                 };
 
-                println!("Status: {:.01}% [{}]", battery_status.charge, charging_status);
+                println!(
+                    "Status: {:.01}% [{}]",
+                    battery_status.charge, charging_status
+                );
             }
             p => println!("Invalid property: {}", p),
         }
     }
 
     if let Some(matches) = matches.subcommand_matches("set") {
-        let devnum = matches.value_of("device").unwrap_or("0").parse::<usize>()?;
         let property = matches.value_of("property").unwrap();
         let value = matches.value_of("value").unwrap();
-        let mut device = libg933::find_devices()?.remove(devnum);
+        let mut devices = libg933::find_devices()?;
+        let mut device = match matches.value_of("device") {
+            Some(sysname) => devices
+                .get_mut(sysname)
+                .ok_or(format_err!("No such device: {}", sysname))?,
+            None => devices
+                .values_mut()
+                .next()
+                .ok_or(format_err!("No devices found"))?,
+        };
 
         match property {
             "report_buttons" => {
@@ -118,8 +133,18 @@ fn run() -> Result<(), Error> {
     }
 
     if let Some(matches) = matches.subcommand_matches("raw") {
-        let devnum = matches.value_of("device").unwrap_or("0").parse::<usize>()?;
         let format = matches.value_of("format").unwrap_or("bytes");
+        let mut devices = libg933::find_devices()?;
+        let mut device = match matches.value_of("device") {
+            Some(sysname) => devices
+                .get_mut(sysname)
+                .ok_or(format_err!("No such device: {}", sysname))?,
+            None => devices
+                .values_mut()
+                .next()
+                .ok_or(format_err!("No devices found"))?,
+        };
+
         let request = matches
             .values_of("request")
             .unwrap()
@@ -129,7 +154,6 @@ fn run() -> Result<(), Error> {
                     .map(|b| u8::from_str_radix(b, 16).unwrap())
             })
             .collect::<Vec<u8>>();
-        let mut device = libg933::find_devices()?.remove(devnum);
 
         match format {
             "bytes" => println!(
