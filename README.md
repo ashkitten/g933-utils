@@ -1,3 +1,7 @@
+# Yotredash
+
+[![Join the chat at https://gitter.im/g933-utils/Lobby](https://badges.gitter.im/g933-utils/Lobby.svg)](https://gitter.im/g933-utils/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 An application to configure and control the Logitech G933 wireless headset
 
 # Usage
