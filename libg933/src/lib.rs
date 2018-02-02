@@ -18,6 +18,7 @@ mod macros;
 pub mod battery;
 pub mod buttons;
 pub mod device_info;
+pub mod equalizer;
 pub mod lights;
 
 use failure::Error;
@@ -170,9 +171,8 @@ impl Device {
     /// Get device info
     pub fn get_device_info(&mut self) -> Result<device_info::DeviceInfo, Error> {
         let request = [0x11, 0xff, 0x02, 0x01];
-        self.raw_request(&request).map(|response| {
-            device_info::DeviceInfo::from_bytes(&response[4..])
-        })
+        self.raw_request(&request)
+            .map(|response| device_info::DeviceInfo::from_bytes(&response[4..]))
     }
 
     /// Get device name
@@ -202,11 +202,7 @@ impl Device {
 
     /// Set startup effect on or off
     pub fn enable_startup_effect(&mut self, enable: bool) -> Result<(), Error> {
-        let enable_byte = if enable {
-            0x01
-        } else {
-            0x02
-        };
+        let enable_byte = if enable { 0x01 } else { 0x02 };
         let request = [0x11, 0xff, 0x04, 0x51, 0x00, 0x01, enable_byte];
         match self.raw_request(&request) {
             Ok(response) => {
@@ -239,6 +235,15 @@ impl Device {
         }
     }
 
+    /// Set equalizer
+    pub fn set_equalizer(
+        &mut self,
+        equalizer: &equalizer::Config,
+    ) -> Result<equalizer::Config, Error> {
+        let request = v![0x11, 0xff, 0x06, 0x31, @equalizer.as_bytes()];
+        Ok(equalizer::Config::from_bytes(&self.raw_request(&request)?))
+    }
+
     /// Set sidetone volume
     pub fn set_sidetone_volume(&mut self, volume: u8) -> Result<(), Error> {
         let request = [0x11, 0xff, 0x07, 0x11, volume];
@@ -262,6 +267,36 @@ impl Device {
         Ok(battery::BatteryStatus::from_bytes(
             &self.raw_request(&request)?,
         ))
+    }
+
+    /// Get poweroff timeout
+    pub fn get_poweroff_timeout(&mut self) -> Result<Option<u8>, Error> {
+        let request = [0x11, 0xff, 0x08, 0x11];
+        match self.raw_request(&request)?[4] {
+            0 => Ok(None),
+            t => Ok(Some(t)),
+        }
+    }
+
+    /// Set poweroff timeout
+    pub fn set_poweroff_timeout(&mut self, timeout: Option<u8>) -> Result<(), Error> {
+        let timeout = match timeout {
+            None => 0,
+            Some(t) => t,
+        };
+        let request = [0x11, 0xff, 0x08, 0x21, timeout];
+        match self.raw_request(&request) {
+            Ok(response) => {
+                ensure!(
+                    response[4] == timeout,
+                    "set_poweroff_timeout response did not match request: expected {}, was {}",
+                    timeout,
+                    response[4],
+                );
+                Ok(())
+            },
+            Err(error) => Err(error),
+        }
     }
 
     /// Watch for button presses/releases (g1, g2, g3)

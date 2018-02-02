@@ -110,6 +110,15 @@ fn run() -> Result<(), Error> {
                     battery_status.charge, charging_status
                 );
             }
+            "poweroff_timeout" => {
+                let timeout = match device.get_poweroff_timeout()? {
+                    None => "never".to_string(),
+                    Some(1) => "1 minute".to_string(),
+                    Some(t) => format!("{} minutes", t),
+                };
+
+                println!("Timeout: {}", timeout);
+            }
             p => println!("Invalid property: {}", p),
         }
     }
@@ -141,6 +150,18 @@ fn run() -> Result<(), Error> {
             "startup_effect" => {
                 let enable = value.parse::<bool>()?;
                 device.enable_startup_effect(enable)?;
+            }
+            "poweroff_timeout" => {
+                let timeout = match value {
+                    "never" => None,
+                    timeout => Some(timeout.parse::<u8>()?),
+                };
+
+                if let Some(0) = timeout {
+                    bail!("Timeout must be greater than 0. If you want to never time out, specify 'never' instead");
+                }
+
+                device.set_poweroff_timeout(timeout)?;
             }
             p => println!("Invalid property: {}", p),
         }

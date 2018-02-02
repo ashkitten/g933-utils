@@ -11,7 +11,10 @@ lazy_static! {
         fn make_map(input: &str) -> BTreeMap<isize, f32> {
             let mut map = BTreeMap::new();
 
-            for mut split in input.split('\n').filter(|line| !line.is_empty()).map(|line| line.splitn(2, ',')) {
+            for mut split in input
+                .split('\n')
+                .filter(|line| !line.is_empty()).map(|line| line.splitn(2, ','))
+            {
                 map.insert(
                     split.next().unwrap().parse::<isize>().unwrap(),
                     split.next().unwrap().parse::<f32>().unwrap(),

@@ -35,6 +35,8 @@
 - index: 0x08
 - fnids:
   - 0: get_battery_status() -> (voltage: u16, status: u8)
+  - 1: ????
+  - 2: set_poweroff_timeout(timeout: u8) -> (timeout: u8)
 
 0x8010: gkey
 - index: 0x05
@@ -66,6 +68,7 @@
   - 0: ????
   - 1: ????
   - 2: ????
+  - 3: ????
 
 ##############################
 ########## Requests ##########
@@ -172,6 +175,11 @@
 # Unknown how long the parameters or return values are, it is called once during LGS startup
 - [] : []
 
+[06 3x]
+# Hz: 32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000
+- [02 00 00 00 00 00 00 00 00 00 00] : [02 00 00 00 00 00 00 00 00 00 00] # flat
+- [02 00 00 01 02 04 05 04 04 02 01] : [02 00 00 01 02 04 05 04 04 02 01] # fps
+
 [07 1x] # set_sidetone_volume
 # From logitechgaming_startup.pcapng
 - [0a] : [0a]
@@ -185,3 +193,13 @@
 
 # The device interrupts with this code and no arguments when turning off
 - : [00 00 00]
+
+[08 1x] # get_poweroff_timeout
+- [] : [01] # 1 minute
+- [] : [05] # 5 minutes
+- [] : [00] # never
+
+[08 2x] # set_poweroff_timeout
+- [01] : [01] # 1 minute
+- [0a] : [0a] # 10 minutes
+- [00] : [00] # never
