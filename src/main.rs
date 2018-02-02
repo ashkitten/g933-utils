@@ -53,7 +53,7 @@ fn run() -> Result<(), Error> {
                 Valid options for `property` are:
                     buttons (bool)
                     equalizer (-12 - 11...)
-                    poweroff_timeout (0 - 255)
+                    poweroff_timeout (1 - 255 or 'never')
                     sidetone_volume (0 - 100)
                     startup_effect (bool)
             "))
