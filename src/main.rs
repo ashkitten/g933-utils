@@ -110,6 +110,26 @@ fn run() -> Result<(), Error> {
                     battery_status.charge, charging_status
                 );
             }
+            "button_count" => {
+                println!("Number of buttons: {}", device.get_button_count()?);
+            }
+            "buttons" => {
+                if device.get_buttons_enabled()? {
+                    println!("Enabled");
+                } else {
+                    println!("Disabled");
+                }
+            }
+            "sidetone_volume" => {
+                println!("Volume: {}%", device.get_sidetone_volume()?);
+            }
+            "startup_effect" => {
+                if device.get_startup_effect_enabled()? {
+                    println!("Enabled");
+                } else {
+                    println!("Disabled");
+                }
+            }
             "poweroff_timeout" => {
                 let timeout = match device.get_poweroff_timeout()? {
                     None => "never".to_string(),

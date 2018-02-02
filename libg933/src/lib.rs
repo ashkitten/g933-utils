@@ -5,6 +5,7 @@
 // Because otherwise clippy will warn us on use of format_err!, and I want to keep it consistent
 #![cfg_attr(feature = "cargo-clippy", allow(useless_format))]
 
+extern crate byteorder;
 #[macro_use]
 extern crate failure;
 #[macro_use]
@@ -18,9 +19,9 @@ mod macros;
 pub mod battery;
 pub mod buttons;
 pub mod device_info;
-pub mod equalizer;
 pub mod lights;
 
+use byteorder::{ByteOrder, LittleEndian};
 use failure::Error;
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
@@ -140,14 +141,9 @@ impl Device {
 
     /// Get info about a feature
     pub fn get_feature(&mut self, feature: u16) -> Result<(u8, u8, u8), Error> {
-        let request = [
-            0x11,
-            0xff,
-            0x00,
-            0x01,
-            (feature >> 8) as u8,
-            (feature & 0xff) as u8,
-        ];
+        let mut feature_bytes = [0; 2];
+        LittleEndian::write_u16(&mut feature_bytes, feature);
+        let request = v![0x11, 0xff, 0x00, 0x01, @feature_bytes.iter()];
         self.raw_request(&request)
             .map(|response| (response[4], response[5], response[6]))
     }
@@ -200,6 +196,13 @@ impl Device {
         Ok(lights::Config::from_bytes(&self.raw_request(&request)?))
     }
 
+    /// Get startup effect enabled status
+    pub fn get_startup_effect_enabled(&mut self) -> Result<bool, Error> {
+        let request = [0x11, 0xff, 0x04, 0x41, 0x00, 0x01];
+        self.raw_request(&request)
+            .map(|response| response[4] == 0x01)
+    }
+
     /// Set startup effect on or off
     pub fn enable_startup_effect(&mut self, enable: bool) -> Result<(), Error> {
         let enable_byte = if enable { 0x01 } else { 0x02 };
@@ -216,6 +219,18 @@ impl Device {
             }
             Err(error) => Err(error),
         }
+    }
+
+    /// Get number of buttons on device
+    pub fn get_button_count(&mut self) -> Result<u8, Error> {
+        let request = [0x11, 0xff, 0x05, 0x01];
+        self.raw_request(&request).map(|response| response[4])
+    }
+
+    /// Get button reporting status
+    pub fn get_buttons_enabled(&mut self) -> Result<bool, Error> {
+        let request = [0x11, 0xff, 0x05, 0x11];
+        self.raw_request(&request).map(|response| response[4] == 0x01)
     }
 
     /// Set button reporting on or off
@@ -235,13 +250,48 @@ impl Device {
         }
     }
 
+    /// Get frequency of equalizer bands
+    pub fn get_equalizer_bands(&mut self) -> Result<[u16; 10], Error> {
+        let mut bands = [0; 10];
+        let request = [0x11, 0xff, 0x06, 0x11, 0x00];
+        LittleEndian::read_u16_into(&self.raw_request(&request)?[4..19], &mut bands[0..7]);
+        let request = [0x11, 0xff, 0x06, 0x11, 0x07];
+        LittleEndian::read_u16_into(&self.raw_request(&request)?[4..11], &mut bands[7..10]);
+        Ok(bands)
+    }
+
+    /// Get equalizer
+    pub fn get_equalizer(&mut self) -> Result<[i8; 10], Error> {
+        let request = [0x11, 0xff, 0x06, 0x21];
+        self.raw_request(&request).map(|response| unsafe {
+            let mut config = [0; 10];
+            config.copy_from_slice(&response[4..14]);
+            std::mem::transmute(config)
+        })
+    }
+
     /// Set equalizer
-    pub fn set_equalizer(
-        &mut self,
-        equalizer: &equalizer::Config,
-    ) -> Result<equalizer::Config, Error> {
-        let request = v![0x11, 0xff, 0x06, 0x31, @equalizer.as_bytes()];
-        Ok(equalizer::Config::from_bytes(&self.raw_request(&request)?))
+    pub fn set_equalizer(&mut self, config: [i8; 10]) -> Result<(), Error> {
+        let config = unsafe { std::mem::transmute::<_, [u8; 10]>(config) };
+        let request = v![0x11, 0xff, 0x06, 0x31, @config.iter()];
+        match self.raw_request(&request) {
+            Ok(response) => {
+                ensure!(
+                    response[4..14] == config,
+                    "set_equalizer response did not match the request: expected {:?}, was {:?}",
+                    config,
+                    &response[4..14]
+                );
+                Ok(())
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Get sidetone volume
+    pub fn get_sidetone_volume(&mut self) -> Result<u8, Error> {
+        let request = [0x11, 0xff, 0x07, 0x00];
+        self.raw_request(&request).map(|response| response[4])
     }
 
     /// Set sidetone volume
@@ -294,7 +344,7 @@ impl Device {
                     response[4],
                 );
                 Ok(())
-            },
+            }
             Err(error) => Err(error),
         }
     }

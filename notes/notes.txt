@@ -35,14 +35,15 @@
 - index: 0x08
 - fnids:
   - 0: get_battery_status() -> (voltage: u16, status: u8)
-  - 1: ????
+  - 1: get_poweroff_timeout() -> (timeout: u8)
   - 2: set_poweroff_timeout(timeout: u8) -> (timeout: u8)
 
 0x8010: gkey
 - index: 0x05
 - fnids:
   - 0: get_button_count() -> (count: u8)
-  - 2: enable_buttons(enable: bool) -> (enable: bool)
+  - 1: get_buttons_enabled() -> (enabled: bool)
+  - 2: enable_buttons(enabled: bool) -> (enabled: bool)
 
 0x8070: lights
 - index: 0x04
@@ -51,7 +52,8 @@
   - 1: ????
   - 2: ????
   - 3: set_lights(lights: LightConfig) -> (lights: LightConfig)
-  - 5: enable_startup_effect(??: u8, ??: u8, enable: bool) -> (??: u8, ??: u8, enable: bool)
+  - 4: get_startup_effect_enabled(??: u8, ??: u8) -> (enabled: u8)
+  - 5: enable_startup_effect(??: u8, ??: u8, enabled: u8) -> (??: u8, ??: u8, enabled: u8)
   - 8: ????
   - d: ????
   - e: ????
@@ -65,10 +67,10 @@
 0x8310: equalizer
 - index: 0x06
 - fnids:
-  - 0: ????
-  - 1: ????
-  - 2: ????
-  - 3: ????
+  - 0: get_equalizer_info() -> (num_bands: u8, band_range: u8, ??: u8)
+  - 1: get_equalizer_bands(start_index: u8) -> (bands: [u16; 7])
+  - 2: get_equalizer() -> (band_settings: [u8; 10])
+  - 3: set_equalizer(band_settings: [u8; 10]) -> (band_settings: [u8; 7])
 
 ##############################
 ########## Requests ##########
@@ -127,6 +129,10 @@
 [04 3x] # set_lights
 # Refer to libg933/src/lights.rs for more info
 
+[04 4x] # get_startup_effect_enabled
+- [00 01] : [01] # Enabled
+- [00 01] : [02] # Disabled
+
 [04 5x] # enable_startup_effect
 - [00 01 01] : [00 01 01] # Enable startup effect
 - [00 01 02] : [00 01 02] # Disable startup effect
@@ -164,19 +170,22 @@
 - [01] : [01] # From logitchgaming_startup.pcapng
 - [00] : [00] # From logitechgaming_shutdown.pcapng
 
-[06 0x]
+[06 0x] # get_equalizer_info
+# First byte might be number of equalizer bands
+# Second byte might be band range (-12..=12)
 - [] : [0a 0c 01]
 
-[06 1x]
-# Found on my own
-- [] : [00 20 00 40 00 7d 00 fa 01 f4 03 e8 07 d0]
-
-[06 2x]
-# Unknown how long the parameters or return values are, it is called once during LGS startup
-- [] : []
-
-[06 3x]
+[06 1x] # get_equalizer_bands
 # Hz: 32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000
+# Request byte specifies the index of the first band in the response
+- [00] : [00 00 20 00 40 00 7d 00 fa 01 f4 03 e8 07 d0]
+- [07] : [07 0f a0 1f 40 3e 80 00 00 00 00 00 00 00 00]
+
+[06 2x] # get_equalizer
+- [] : [00 00 00 00 00 00 00 00 00 00] # flat
+- [] : [00 00 01 02 04 05 04 04 02 01] # fps
+
+[06 3x] # set_equalizer
 - [02 00 00 00 00 00 00 00 00 00 00] : [02 00 00 00 00 00 00 00 00 00 00] # flat
 - [02 00 00 01 02 04 05 04 04 02 01] : [02 00 00 01 02 04 05 04 04 02 01] # fps
 

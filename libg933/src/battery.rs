@@ -1,5 +1,6 @@
 //! Battery-related code and stuff
 
+use byteorder::{ByteOrder, LittleEndian};
 use std::collections::{BTreeMap, HashMap};
 
 use FromBytes;
@@ -86,7 +87,7 @@ impl FromBytes for BatteryStatus {
 
         debug!("Charging status: {:?}", charging_status);
 
-        let voltage = ((bytes[4] as isize) << 8) | (bytes[5] as isize);
+        let voltage = LittleEndian::read_u16(&bytes[4..6]) as isize;
 
         debug!("Voltage: {}", voltage);
 
