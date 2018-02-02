@@ -46,7 +46,7 @@ fn run() -> Result<(), Error> {
             .args_from_usage("
                 -d, --device [device] 'Device to set property on'
                 <property>            'Property to set'
-                <value>               'Value of property'
+                <value>...            'Value(s) of property'
             ")
             .after_help(indoc!("
                 Valid options for `property` are:
@@ -126,15 +126,8 @@ fn run() -> Result<(), Error> {
                     println!("Disabled");
                 }
             }
-            "sidetone_volume" => {
-                println!("Volume: {}%", device.get_sidetone_volume()?);
-            }
-            "startup_effect" => {
-                if device.get_startup_effect_enabled()? {
-                    println!("Enabled");
-                } else {
-                    println!("Disabled");
-                }
+            "equalizer" => {
+                println!("Equalizer: {:?}", device.get_equalizer()?);
             }
             "poweroff_timeout" => {
                 let timeout = match device.get_poweroff_timeout()? {
@@ -145,13 +138,23 @@ fn run() -> Result<(), Error> {
 
                 println!("Timeout: {}", timeout);
             }
+            "sidetone_volume" => {
+                println!("Volume: {}%", device.get_sidetone_volume()?);
+            }
+            "startup_effect" => {
+                if device.get_startup_effect_enabled()? {
+                    println!("Enabled");
+                } else {
+                    println!("Disabled");
+                }
+            }
             p => println!("Invalid property: {}", p),
         }
     }
 
     if let Some(matches) = matches.subcommand_matches("set") {
         let property = matches.value_of("property").unwrap();
-        let value = matches.value_of("value").unwrap();
+        let values: Vec<&str> = matches.values_of("value").unwrap().collect();
         let mut devices = libg933::find_devices()?;
         let mut device = match matches.value_of("device") {
             Some(sysname) => devices
@@ -165,20 +168,21 @@ fn run() -> Result<(), Error> {
 
         match property {
             "buttons" => {
-                let enable = value.parse::<bool>()?;
+                let enable = values[0].parse::<bool>()?;
                 device.enable_buttons(enable)?;
             }
-            "sidetone_volume" => {
-                let volume = value.parse::<u8>()?;
-                assert!(volume <= 100);
-                device.set_sidetone_volume(volume)?;
-            }
-            "startup_effect" => {
-                let enable = value.parse::<bool>()?;
-                device.enable_startup_effect(enable)?;
+            "equalizer" => {
+                // Start with the old config and overwrite parts
+                let mut config = device.get_equalizer()?;
+                for (i, value) in values.iter().enumerate() {
+                    config[i] = i8::from_str_radix(value, 16).unwrap();
+                }
+
+                device.set_equalizer(false, config)?;
+                device.set_equalizer(true, config)?;
             }
             "poweroff_timeout" => {
-                let timeout = match value {
+                let timeout = match values[0] {
                     "never" => None,
                     timeout => Some(timeout.parse::<u8>()?),
                 };
@@ -188,6 +192,15 @@ fn run() -> Result<(), Error> {
                 }
 
                 device.set_poweroff_timeout(timeout)?;
+            }
+            "sidetone_volume" => {
+                let volume = values[0].parse::<u8>()?;
+                assert!(volume <= 100);
+                device.set_sidetone_volume(volume)?;
+            }
+            "startup_effect" => {
+                let enable = values[0].parse::<bool>()?;
+                device.enable_startup_effect(enable)?;
             }
             p => println!("Invalid property: {}", p),
         }
@@ -232,11 +245,7 @@ fn run() -> Result<(), Error> {
         let request = matches
             .values_of("request")
             .unwrap()
-            .flat_map(|bytes| {
-                bytes
-                    .split_whitespace()
-                    .map(|b| u8::from_str_radix(b, 16).unwrap())
-            })
+            .map(|byte| u8::from_str_radix(byte, 16).unwrap())
             .collect::<Vec<u8>>();
 
         match format {

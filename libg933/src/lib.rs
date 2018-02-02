@@ -271,16 +271,18 @@ impl Device {
     }
 
     /// Set equalizer
-    pub fn set_equalizer(&mut self, config: [i8; 10]) -> Result<(), Error> {
+    pub fn set_equalizer(&mut self, permanent: bool, config: [i8; 10]) -> Result<(), Error> {
+        let permanent = if permanent { 0x02 } else { 0x00 };
         let config = unsafe { std::mem::transmute::<_, [u8; 10]>(config) };
-        let request = v![0x11, 0xff, 0x06, 0x31, @config.iter()];
+        // TODO: figure out what the 0x02 is
+        let request = v![0x11, 0xff, 0x06, 0x31, permanent, @config.iter()];
         match self.raw_request(&request) {
             Ok(response) => {
                 ensure!(
-                    response[4..14] == config,
+                    response[5..15] == config,
                     "set_equalizer response did not match the request: expected {:?}, was {:?}",
                     config,
-                    &response[4..14]
+                    &response[5..15]
                 );
                 Ok(())
             }
