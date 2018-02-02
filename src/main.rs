@@ -172,6 +172,8 @@ fn run() -> Result<(), Error> {
                 device.enable_buttons(enable)?;
             }
             "equalizer" => {
+                ensure!(values.len() <= 10, "Only 10 equalizer values allowed");
+
                 // Start with the old config and overwrite parts
                 let mut config = device.get_equalizer()?;
                 for (i, value) in values.iter().enumerate() {

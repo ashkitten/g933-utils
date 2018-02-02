@@ -230,7 +230,8 @@ impl Device {
     /// Get button reporting status
     pub fn get_buttons_enabled(&mut self) -> Result<bool, Error> {
         let request = [0x11, 0xff, 0x05, 0x11];
-        self.raw_request(&request).map(|response| response[4] == 0x01)
+        self.raw_request(&request)
+            .map(|response| response[4] == 0x01)
     }
 
     /// Set button reporting on or off
