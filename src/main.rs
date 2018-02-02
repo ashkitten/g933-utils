@@ -34,6 +34,11 @@ fn run() -> Result<(), Error> {
             .after_help(indoc!("
                 Valid options for `property` are:
                     battery
+                    button_count
+                    buttons
+                    sidetone_volume
+                    startup_effect
+                    poweroff_timeout
             "))
         )
         .subcommand(SubCommand::with_name("set")
@@ -48,6 +53,7 @@ fn run() -> Result<(), Error> {
                     buttons (bool)
                     sidetone_volume (0 - 100)
                     startup_effect (bool)
+                    poweroff_timeout (0 - 255)
             "))
         )
         .subcommand(SubCommand::with_name("watch")
