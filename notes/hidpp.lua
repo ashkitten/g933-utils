@@ -27,12 +27,12 @@ hidpp.dissector = function(tvbuf, pktinfo, root)
 
     local tree = root:add(hidpp, tvbuf:range(0, tvbuf:len()))
 
-    tree:add(pf_msg_len, tvbuf:range(0, 1))
-    tree:add(pf_device_id, tvbuf:range(1, 1))
-    tree:add(pf_feature, tvbuf:range(2, 1):le_uint())
-    tree:add(pf_fnid, tvbuf:range(3, 1):bitfield(0, 4))
-    tree:add(pf_swid, tvbuf:range(3, 1):bitfield(4, 4))
-    tree:add(pf_data, tvbuf:range(4, tvbuf:len() - 4))
+    tree:add_le(pf_msg_len, tvbuf:range(0, 1))
+    tree:add_le(pf_device_id, tvbuf:range(1, 1))
+    tree:add_le(pf_feature, tvbuf:range(2, 1))
+    tree:add_le(pf_fnid, tvbuf:range(3, 1), tvbuf:range(3, 1):bitfield(0, 4))
+    tree:add_le(pf_swid, tvbuf:range(3, 1), tvbuf:range(3, 1):bitfield(4, 4))
+    tree:add_le(pf_data, tvbuf:range(4, tvbuf:len() - 4))
 end
 
 local function heuristic_dissector(tvbuf, pktinfo, root)
