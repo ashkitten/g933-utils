@@ -19,7 +19,8 @@ After building, try running `./target/release/g933-utils --help` to see an overv
 
 # Hacking
 
-There is a Wireshark lua script in the `notes` directory that provides better parsing for the HID++ protocol that this and other Logitech devices use.
+There is a Wireshark lua script in the `notes` directory that provides better parsing for the HID++ protocol that this and other Logitech devices use.  
+Link this script into your `~/.config/wireshark/plugins` directory, and wireshark should load it automatically.
 
 # Support Me
 
