@@ -1,6 +1,6 @@
 # Yotredash
 
-[![Join the chat at https://gitter.im/g933-utils/Lobby](https://badges.gitter.im/g933-utils/Lobby.svg)](https://gitter.im/g933-utils/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Gitter](https://badges.gitter.im/g933-utils/Lobby.svg)](https://gitter.im/g933-utils/Lobby)
 
 An application to configure and control the Logitech G933 wireless headset
 
@@ -16,6 +16,10 @@ and log out and back in, or alternatively just reboot.
 You can build the tool with Cargo by navigating to the git clone directory and executing `cargo build --release`. The executable will now be in the `target/release` directory.
 
 After building, try running `./target/release/g933-utils --help` to see an overview of the commands.
+
+# Hacking
+
+There is a Wireshark lua script in the `notes` directory that provides better parsing for the HID++ protocol that this and other Logitech devices use.
 
 # Support Me
 
