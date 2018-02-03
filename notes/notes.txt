@@ -9,8 +9,8 @@
 0x0000: root feature (https://lekensteyn.nl/files/logitech/x0000_root.html)
 - index: 0x00
 - fnids:
-  - 1: get_feature(feature: u16) -> (index: u8, type: u8, version: u8)
-  - 2: get_protocol_version() -> (protocol_num: u8, target_sw u8, ping_data: u8)
+  - 0: get_feature(feature: u16) -> (index: u8, type: u8, version: u8)
+  - 1: get_protocol_version(null, null, ping_data: u8) -> (protocol_num: u8, target_sw u8, ping_data: u8)
 
 0x0001: feature set (https://git.lekensteyn.nl/ltunify/tree/hidpp20.c)
 - index: 0x01
@@ -27,9 +27,9 @@
 0x0005: device name/type (https://git.lekensteyn.nl/ltunify/tree/hidpp20.c)
 - index: 0x03
 - fnids:
-  - 0: get_device_name_length
+  - 0: get_device_name_length() -> (length: u8)
   - 1: get_device_name(part_index: u8) -> (part: [char; 16])
-  - 2: get_device_type
+  - 2: get_device_type() -> (type: u8)
 
 0x1f20: battery status
 - index: 0x08
@@ -68,9 +68,9 @@
 - index: 0x06
 - fnids:
   - 0: get_equalizer_info() -> (num_bands: u8, band_range: u8, ??: u8)
-  - 1: get_equalizer_bands(start_index: u8) -> (bands: [u16; 7])
+  - 1: get_equalizer_bands(start_index: u8) -> (start_index: u8, bands: [u16; 7])
   - 2: get_equalizer() -> (band_settings: [u8; 10])
-  - 3: set_equalizer(band_settings: [u8; 10]) -> (band_settings: [u8; 7])
+  - 3: set_equalizer(band_settings: [u8; 10]) -> (band_settings: [u8; 10])
 
 ##############################
 ########## Requests ##########
