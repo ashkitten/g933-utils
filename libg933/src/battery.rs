@@ -1,6 +1,6 @@
 //! Battery-related code and stuff
 
-use byteorder::{ByteOrder, LittleEndian};
+use byteorder::{ByteOrder, BigEndian};
 use std::collections::{BTreeMap, HashMap};
 
 use FromBytes;
@@ -78,7 +78,7 @@ pub struct BatteryStatus {
 
 impl FromBytes for BatteryStatus {
     fn from_bytes(bytes: &[u8]) -> Self {
-        let charging_status = match bytes[6] {
+        let charging_status = match bytes[2] {
             1 => ChargingStatus::Discharging,
             3 => ChargingStatus::Charging(false), // TODO: implement check for ascending/descending
             7 => ChargingStatus::Full,
@@ -87,7 +87,7 @@ impl FromBytes for BatteryStatus {
 
         debug!("Charging status: {:?}", charging_status);
 
-        let voltage = LittleEndian::read_u16(&bytes[4..6]) as isize;
+        let voltage = BigEndian::read_u16(&bytes[0..2]) as isize;
 
         debug!("Voltage: {}", voltage);
 

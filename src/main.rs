@@ -37,6 +37,7 @@ fn run() -> Result<(), Error> {
                     button_count
                     buttons
                     equalizer
+                    equalizer_bands
                     poweroff_timeout
                     sidetone_volume
                     startup_effect
@@ -130,6 +131,9 @@ fn run() -> Result<(), Error> {
             }
             "equalizer" => {
                 println!("Equalizer: {:?}", device.get_equalizer()?);
+            }
+            "equalizer_bands" => {
+                println!("Bands (Hz): {:?}", device.get_equalizer_bands()?);
             }
             "poweroff_timeout" => {
                 let timeout = match device.get_poweroff_timeout()? {

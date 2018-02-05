@@ -1,6 +1,6 @@
 //! Configuration structs and stuff for headset lighting
 
-use byteorder::{ByteOrder, LittleEndian};
+use byteorder::{ByteOrder, BigEndian};
 
 use {AsBytes, FromBytes};
 
@@ -103,11 +103,11 @@ impl AsBytes for Config {
                 params[2] = red;
                 params[3] = green;
                 params[4] = blue;
-                LittleEndian::write_u16(&mut params[5..7], rate);
+                BigEndian::write_u16(&mut params[5..7], rate);
                 params[8] = brightness;
             }
             Effect::ColorCycle { rate, brightness } => {
-                LittleEndian::write_u16(&mut params[7..9], rate);
+                BigEndian::write_u16(&mut params[7..9], rate);
                 params[9] = brightness;
             }
         }
@@ -156,11 +156,11 @@ impl FromBytes for Config {
                     red: bytes[2],
                     green: bytes[3],
                     blue: bytes[4],
-                    rate: LittleEndian::read_u16(&bytes[5..7]),
+                    rate: BigEndian::read_u16(&bytes[5..7]),
                     brightness: bytes[8],
                 },
                 3 => Effect::ColorCycle {
-                    rate: LittleEndian::read_u16(&bytes[7..9]),
+                    rate: BigEndian::read_u16(&bytes[7..9]),
                     brightness: bytes[9],
                 },
                 _ => unreachable!(),

@@ -21,7 +21,7 @@ pub mod buttons;
 pub mod device_info;
 pub mod lights;
 
-use byteorder::{ByteOrder, LittleEndian};
+use byteorder::{ByteOrder, BigEndian};
 use failure::Error;
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
@@ -142,7 +142,7 @@ impl Device {
     /// Get info about a feature
     pub fn get_feature(&mut self, feature: u16) -> Result<(u8, u8, u8), Error> {
         let mut feature_bytes = [0; 2];
-        LittleEndian::write_u16(&mut feature_bytes, feature);
+        BigEndian::write_u16(&mut feature_bytes, feature);
         let request = v![0x11, 0xff, 0x00, 0x01, @feature_bytes.iter()];
         self.raw_request(&request)
             .map(|response| (response[4], response[5], response[6]))
@@ -193,7 +193,7 @@ impl Device {
     /// Set light configuration
     pub fn set_lights(&mut self, lights: &lights::Config) -> Result<lights::Config, Error> {
         let request = v![0x11, 0xff, 0x04, 0x31, @lights.as_bytes()];
-        Ok(lights::Config::from_bytes(&self.raw_request(&request)?))
+        Ok(lights::Config::from_bytes(&self.raw_request(&request)?[4..]))
     }
 
     /// Get startup effect enabled status
@@ -255,9 +255,9 @@ impl Device {
     pub fn get_equalizer_bands(&mut self) -> Result<[u16; 10], Error> {
         let mut bands = [0; 10];
         let request = [0x11, 0xff, 0x06, 0x11, 0x00];
-        LittleEndian::read_u16_into(&self.raw_request(&request)?[4..19], &mut bands[0..7]);
+        BigEndian::read_u16_into(&self.raw_request(&request)?[5..19], &mut bands[0..7]);
         let request = [0x11, 0xff, 0x06, 0x11, 0x07];
-        LittleEndian::read_u16_into(&self.raw_request(&request)?[4..11], &mut bands[7..10]);
+        BigEndian::read_u16_into(&self.raw_request(&request)?[5..11], &mut bands[7..10]);
         Ok(bands)
     }
 
@@ -318,7 +318,7 @@ impl Device {
     pub fn get_battery_status(&mut self) -> Result<battery::BatteryStatus, Error> {
         let request = [0x11, 0xff, 0x08, 0x01];
         Ok(battery::BatteryStatus::from_bytes(
-            &self.raw_request(&request)?,
+            &self.raw_request(&request)?[4..],
         ))
     }
 
