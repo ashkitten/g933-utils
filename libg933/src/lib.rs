@@ -122,7 +122,8 @@ impl Device {
             requests.insert(header, sender);
         }
 
-        loop {
+        // Try 3 times then fail if it doesn't return anything
+        for _ in 0..3 {
             self.file.write_all(&data)?;
             debug!(
                 "Sent data to device: {}",
@@ -137,6 +138,8 @@ impl Device {
                 Err(error) => return Err(error.into()),
             }
         }
+
+        bail!("Request timed out");
     }
 
     /// Get info about a feature
