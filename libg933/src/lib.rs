@@ -268,7 +268,8 @@ impl Device {
         let length = self.raw_request(&request)?[4];
 
         let mut name = String::new();
-        for i in 0..length / 10 {
+        let name_parts = ((length - 1) / 10) + 1;
+        for i in 0..name_parts {
             let response = &self.feature_request(FEATURE_DEVNAME, &[0x11, i])?[4..20];
             // blaze it
             // Safe, probably
