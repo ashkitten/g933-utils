@@ -146,25 +146,21 @@ impl Device {
 
         let mut data = [0u8; 20];
         data[..request.len()].copy_from_slice(request);
+        let (sender, receiver) = mpsc::channel();
 
         // Block until no similar requests are pending
         loop {
-            let requests = self.requests.lock().unwrap();
-            if !requests.contains_key(&data[..4]) {
-                break;
+            // Make sure we drop the lock before our write/read loop or wait
+            {
+                let mut requests = self.requests.lock().unwrap();
+                if !requests.contains_key(&data[..4]) {
+                    let mut header = [0u8; 4];
+                    header.copy_from_slice(&data[..4]);
+                    requests.insert(header, sender);
+                    break;
+                }
             }
             thread::sleep(Duration::from_millis(100));
-        }
-
-        let (sender, receiver) = mpsc::channel();
-
-        // Make sure we drop the lock before our write/read loop
-        {
-            let mut requests = self.requests.lock().unwrap();
-
-            let mut header = [0u8; 4];
-            header.copy_from_slice(&data[..4]);
-            requests.insert(header, sender);
         }
 
         // Try 3 times then fail if it doesn't return anything
