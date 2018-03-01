@@ -2,7 +2,8 @@
 
 [![Gitter](https://badges.gitter.im/g933-utils/Lobby.svg)](https://gitter.im/g933-utils/Lobby)
 
-An application to configure and control the Logitech G933 wireless headset
+An application to configure and control the Logitech wireless headsets. G933 and
+G533 are currently supported.
 
 # Usage
 
