@@ -98,7 +98,7 @@
 - [] : [00 55 20 20 98 03 00 27 01 0a 5b]
 
 [03 0x] # get_device_name_length
-- [] : [25]
+- [] : [25] (or 0x16 for G533)
 
 [03 1x] # get_device_name
 # Obviously gets the name of the device

@@ -260,12 +260,12 @@ impl Device {
 
     /// Get device name
     pub fn get_device_name(&mut self) -> Result<String, Error> {
-        let request = [0x11, 0xff, 0x03, 0x01];
-        let length = self.raw_request(&request)?[4];
+        let length = self.feature_request(FEATURE_DEVNAME, &[0x01])?[4];
 
         let mut name = String::new();
-        let name_parts = ((length - 1) / 10) + 1;
-        for i in 0..name_parts {
+        // Div + round up
+        let part_count = ((length - 1) / 16) + 1;
+        for i in 0..part_count {
             let response = &self.feature_request(FEATURE_DEVNAME, &[0x11, i])?[4..20];
             // blaze it
             // Safe, probably
