@@ -69,8 +69,15 @@ pub trait FromBytes {
     fn from_bytes(bytes: &[u8]) -> Self;
 }
 
+/// Convert a series of bytes to a struct that implements this trait
+pub trait FromBytesWithDevice where Self: Sized{
+    /// Convert a series of bytes to a struct that implements this trait
+    fn from_bytes(dev: StaticDeviceMatch, bytes: &[u8]) -> Option<Self>;
+}
+
 /// Contains a `HidDevice` and a vector of requests to be processed
 pub struct Device {
+    dev_match: StaticDeviceMatch,
     file: File,
     requests: Arc<Mutex<RequestsMap>>,
     features: Arc<Mutex<FeatureMap>>,
@@ -87,8 +94,9 @@ pub struct Feature {
 
 impl Device {
     /// Construct a new `Device` from a `HidDevice`
-    pub fn new(path: &Path) -> Result<Self, Error> {
+    pub fn new(path: &Path, dev_match: StaticDeviceMatch) -> Result<Self, Error> {
         let device = Self {
+            dev_match: dev_match,
             file: OpenOptions::new().read(true).write(true).open(path)?,
             requests: Arc::new(Mutex::new(HashMap::new())),
             features: Arc::new(Mutex::new(HashMap::new())),
@@ -414,9 +422,10 @@ impl Device {
 
     /// Get battery status and level
     pub fn get_battery_status(&mut self) -> Result<battery::BatteryStatus, Error> {
-        Ok(battery::BatteryStatus::from_bytes(
+        battery::BatteryStatus::from_bytes(
+            self.dev_match,
             &self.feature_request(FEATURE_BATTERY, &[0x01])?[4..],
-        ))
+        ).ok_or_else(|| format_err!("No charge/discharge curve defined for device"))
     }
 
     /// Get poweroff timeout
@@ -472,7 +481,8 @@ impl Device {
     }
 }
 
-struct DeviceMatch<'a> {
+/// Information about a supported device
+pub struct DeviceMatch<'a> {
     pid: u16,
     name: &'a str,
 }
@@ -488,7 +498,10 @@ const SUPPORTED_DEVICES: &'static [DeviceMatch] = &[
     },
 ];
 
-fn match_device<'a>(dev: &'a udev::Device) -> Option<&'static DeviceMatch<'static>> {
+/// Static reference to information about a supported device
+pub type StaticDeviceMatch = &'static DeviceMatch<'static>;
+
+fn match_device<'a>(dev: &'a udev::Device) -> Option<StaticDeviceMatch> {
     let pid = dev.attribute_value("idProduct")
         .and_then(|s| s.to_str())
         .and_then(|s| u16::from_str_radix(s, 16).ok());
@@ -526,7 +539,9 @@ pub fn find_devices() -> Result<HashMap<String, Device>, Error> {
                 .next()
                 .ok_or_else(|| format_err!("Parent does not contain any hidraw devices"))?
                 .devnode()
-                .ok_or_else(|| format_err!("Hidraw device does not have a filesystem node"))?)?,
+                .ok_or_else(|| format_err!("Hidraw device does not have a filesystem node"))?,
+                dev_match
+                )?
         );
     }
 
