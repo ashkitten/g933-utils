@@ -1,6 +1,6 @@
 //! Configuration structs and stuff for headset lighting
 
-use byteorder::{ByteOrder, BigEndian};
+use byteorder::{BigEndian, ByteOrder};
 
 use {AsBytes, FromBytes};
 
