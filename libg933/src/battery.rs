@@ -81,7 +81,7 @@ pub struct BatteryStatus {
 }
 
 impl FromBytesWithDevice for BatteryStatus {
-    fn from_bytes(dev: StaticDeviceMatch, bytes: &[u8], ) -> Option<Self> {
+    fn from_bytes(dev: StaticDeviceMatch, bytes: &[u8]) -> Option<Self> {
         let charging_status = match bytes[2] {
             1 => ChargingStatus::Discharging,
             3 => ChargingStatus::Charging(false), // TODO: implement check for ascending/descending
@@ -118,10 +118,7 @@ impl FromBytesWithDevice for BatteryStatus {
             closest_voltages.0, closest_voltages.1
         );
 
-        let closest_charges = (
-            map[&closest_voltages.0],
-            map[&closest_voltages.1],
-        );
+        let closest_charges = (map[&closest_voltages.0], map[&closest_voltages.1]);
 
         debug!(
             "Corresponding charges: {}, {}",
@@ -139,7 +136,7 @@ impl FromBytesWithDevice for BatteryStatus {
 
         debug!("Charge: {}", charge);
 
-        Some (Self {
+        Some(Self {
             charging_status,
             voltage: voltage as u16,
             charge,

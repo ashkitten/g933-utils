@@ -70,7 +70,10 @@ pub trait FromBytes {
 }
 
 /// Convert a series of bytes to a struct that implements this trait
-pub trait FromBytesWithDevice where Self: Sized{
+pub trait FromBytesWithDevice
+where
+    Self: Sized,
+{
     /// Convert a series of bytes to a struct that implements this trait
     fn from_bytes(dev: StaticDeviceMatch, bytes: &[u8]) -> Option<Self>;
 }
@@ -534,14 +537,15 @@ pub fn find_devices() -> Result<HashMap<String, Device>, Error> {
         enumerator.match_parent(&parent)?;
         devices.insert(
             parent.sysname().to_string_lossy().to_string(),
-            Device::new(enumerator
-                .scan_devices()?
-                .next()
-                .ok_or_else(|| format_err!("Parent does not contain any hidraw devices"))?
-                .devnode()
-                .ok_or_else(|| format_err!("Hidraw device does not have a filesystem node"))?,
-                dev_match
-                )?
+            Device::new(
+                enumerator
+                    .scan_devices()?
+                    .next()
+                    .ok_or_else(|| format_err!("Parent does not contain any hidraw devices"))?
+                    .devnode()
+                    .ok_or_else(|| format_err!("Hidraw device does not have a filesystem node"))?,
+                dev_match,
+            )?,
         );
     }
 
