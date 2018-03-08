@@ -21,7 +21,7 @@ pub mod buttons;
 pub mod device_info;
 pub mod lights;
 
-use byteorder::{ByteOrder, BigEndian};
+use byteorder::{BigEndian, ByteOrder};
 use failure::Error;
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
@@ -196,7 +196,9 @@ impl Device {
     /// Set light configuration
     pub fn set_lights(&mut self, lights: &lights::Config) -> Result<lights::Config, Error> {
         let request = v![0x11, 0xff, 0x04, 0x31, @lights.as_bytes()];
-        Ok(lights::Config::from_bytes(&self.raw_request(&request)?[4..]))
+        Ok(lights::Config::from_bytes(
+            &self.raw_request(&request)?[4..],
+        ))
     }
 
     /// Get startup effect enabled status

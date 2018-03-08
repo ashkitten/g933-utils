@@ -1,6 +1,6 @@
 //! Battery-related code and stuff
 
-use byteorder::{ByteOrder, BigEndian};
+use byteorder::{BigEndian, ByteOrder};
 use std::collections::{BTreeMap, HashMap};
 
 use FromBytes;
@@ -14,7 +14,8 @@ lazy_static! {
 
             for mut split in input
                 .split('\n')
-                .filter(|line| !line.is_empty()).map(|line| line.splitn(2, ','))
+                .filter(|line| !line.is_empty())
+                .map(|line| line.splitn(2, ','))
             {
                 map.insert(
                     split.next().unwrap().parse::<isize>().unwrap(),
@@ -40,15 +41,12 @@ lazy_static! {
             make_map(include_str!("charging_descending.csv")),
         );
 
-        maps.insert(
-            ChargingStatus::Full,
-            {
-                let mut map = BTreeMap::new();
-                map.insert(0, 100.0);
-                map.insert(1, 100.0);
-                map
-            }
-        );
+        maps.insert(ChargingStatus::Full, {
+            let mut map = BTreeMap::new();
+            map.insert(0, 100.0);
+            map.insert(1, 100.0);
+            map
+        });
 
         maps
     };
