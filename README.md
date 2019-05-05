@@ -1,4 +1,4 @@
-# Yotredash
+# g933-utils
 
 [![Gitter](https://badges.gitter.im/g933-utils/Lobby.svg)](https://gitter.im/g933-utils/Lobby)
 
